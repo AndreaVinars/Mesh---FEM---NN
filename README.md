@@ -82,7 +82,7 @@ This project aims to train a feedforward neural network to predict the modulus o
 
 ---
 
-## Contact
+## Author
 
 **Andrea Vinarš**  
 Email: andrea.vinars3@gmail.com  
