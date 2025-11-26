@@ -1,7 +1,7 @@
-# Mesh---FEM---NN
-Automated generation of 2D finite element meshes with parametric, rotatable elliptical holes for use in computational mechanics and machine learning workflows.
+# Mesh---FEM---FNN
+Automated generation of 2D finite element meshes with parametric, rotatable elliptical holes would be used in computational mechanics and machine learning workflows.
 
-# Predicting Young's Modulus with Neural Networks from Parametric FEA
+# Predicting Young's Modulus with Feedforward Neural Networks from Parametric FEA
 
 This project aims to train a feedforward neural network to predict the modulus of elasticity (Young's modulus) of a 2D plate with two variable, rotatable elliptical holes, based solely on geometric input parameters. The dataset is generated using finite element simulations (FEM) in CalculiX, with plates of fixed dimensions and varying ellipse parameters as inputs.
 
