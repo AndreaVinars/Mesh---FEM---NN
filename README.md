@@ -1,5 +1,5 @@
 # Mesh---FEM---FNN
-Automated generation of 2D finite element meshes with parametric, rotatable elliptical holes would be used in computational mechanics and machine learning workflows.
+Automated generation of 2D finite element meshes with parametric, rotatable elliptical holes will be used in computational mechanics and machine learning workflows.
 
 # Predicting Young's Modulus with Feedforward Neural Networks from Parametric FEA
 
