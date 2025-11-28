@@ -6,7 +6,7 @@ The goal is to train a Feedforward Neural Network (FNN) to predict the **effecti
 
 ---
 
-## 🚧 Project Status
+## Project Status
 
 This project is currently under active development.
 
