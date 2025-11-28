@@ -2,11 +2,11 @@
 
 This project automates the prediction of the **effective elastic properties** of a perforated 2D plate using a hybrid Finite Element Analysis (FEA) and Machine Learning approach.
 
-The goal is to train a Feedforward Neural Network (FNN) to predict the **Effective Young's Modulus ($E_{eff}$)** of a plate with two random elliptical holes, bypassing computationally expensive FEM simulations for new geometries.
+The goal is to train a Feedforward Neural Network (FNN) to predict the **effective Young's modulus ($E_{eff}$)** of a plate with two random elliptical holes, bypassing computationally expensive FEM simulations for new geometries.
 
 ---
 
-## Project Status
+## 🚧 Project Status
 
 This project is currently under active development.
 
@@ -31,14 +31,18 @@ The pipeline integrates computational homogenization principles with deep learni
 
 3. **Homogenization (Post-Processing):** 
    - Stresses are extracted from **Gauss integration points** across all elements.
-   - **Average Stress ($\bar{\sigma}$)** and **Average Strain ($\bar{\varepsilon}$)** are computed over the domain volume ($V$):
-     $$ \bar{\sigma} = \frac{1}{V} \int_V \sigma dV, \quad \bar{\varepsilon} = \frac{1}{V} \int_V \varepsilon dV $$
-   - The **Effective Young's Modulus ($E_{eff}$)** is derived from the constitutive relation of the equivalent homogeneous medium.
+   - **Average Stress ($\bar{\sigma}$)** and **Average Strain ($\bar{\varepsilon}$)** are computed via volume integration over the domain ($V$).
+   - The **effective Young's modulus ($E_{eff}$)** is derived from the constitutive relation of the equivalent homogeneous medium.
 
 4. **Machine Learning:** 
    - A regression neural network maps the 10-dimensional geometric vector directly to $E_{eff}$.
 
 ---
+
+## Example Workflow
+
+1. **Generate dataset (meshes and parameter CSV):**
+
 
 
 
@@ -65,11 +69,20 @@ The pipeline integrates computational homogenization principles with deep learni
 
 ## Next Steps
 
-- [ ] Feeding FEM with models (CalculiX)
-- [ ] Parallelization for faster mesh/FEM simulations
-- [ ] Hyperparameter tuning for neural network
-- [ ] Error analysis and validation
-- [ ] Jupyter notebook example for reproducibility
+- [ ] Implement batch execution of CalculiX simulations.
+- [ ] Develop post-processing script for volume averaging (Homogenization).
+- [ ] Parallelization for faster mesh/FEM generation.
+- [ ] Validation against FEM ground truth (MSE/R² metrics).
+- [ ] Jupyter notebook example for reproducibility.
+
+---
+
+## Requirements
+- **Python 3.x**
+- **Gmsh SDK** (Mesh generation)
+- **CalculiX (ccx)** (FEM Solver)
+- **NumPy & Pandas** (Data handling)
+- **PyTorch** (Planned for ML)
 
 ---
 
