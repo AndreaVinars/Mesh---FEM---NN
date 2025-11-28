@@ -31,7 +31,7 @@ The pipeline integrates computational homogenization principles with deep learni
 
 3. **Homogenization (Post-Processing):** 
    - Stresses are extracted from **Gauss integration points** across all elements.
-   - **Average Stress ($\bar{\sigma}$)** and **Average Strain ($\bar{\varepsilon}$)** are computed via volume integration over the domain ($V$).
+   - **Average stress ($\bar{\sigma}$)** and **average strain ($\bar{\varepsilon}$)** are computed via volume integration over the domain ($V$).
    - The **effective Young's modulus ($E_{eff}$)** is derived from the constitutive relation of the equivalent homogeneous medium.
 
 4. **Machine Learning:** 
