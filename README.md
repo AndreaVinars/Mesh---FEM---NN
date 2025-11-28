@@ -1,9 +1,16 @@
-# Mesh---FEM---FNN
-Automated generation of 2D finite element meshes with parametric, rotatable elliptical holes will be used in computational mechanics and machine learning workflows. Goal: predicting Young's modulus with >95% accuracy from the input of the dimensions and positions of the elliptic holes.
-
 # Predicting Young's Modulus with Feedforward Neural Networks from Parametric FEA
 
-This project aims to train a feedforward neural network to predict the modulus of elasticity (Young's modulus) of a 2D plate with two variable, rotatable elliptical holes, based solely on geometric input parameters. The dataset is generated using finite element simulations (FEM) in CalculiX, with plates of fixed dimensions and varying ellipse parameters as inputs.
+This project aims to train a neural network to predict the effective elastic modulus ($E_{eff}$) of a perforated plate based on hole geometry. Using Computational Homogenization principles, the effective stiffness is derived from the averaged stress-strain response calculated via FEM.
+
+---
+
+## Project Status
+
+This project is currently under active development.
+
+- [x] **Phase 1:** Parametric mesh generation with GMSH (Completed)
+- [ ] **Phase 2:** FEM simulation integration with CalculiX (In Progress)
+- [ ] **Phase 3:** Neural Network training & Validation (Planned)
 
 ---
 
@@ -11,7 +18,7 @@ This project aims to train a feedforward neural network to predict the modulus o
 
 1. **Mesh Generation:** Automated creation and meshing of 2D plates (fixed dimensions) with two randomly parameterized elliptical holes (position, axes, angle) using GMSH Python API.
 2. **FEM Simulation:** Batch simulation of all geometries in CalculiX, applying a prescribed displacement to extract global reaction force for each sample.
-3. **Dataset Assembly:** For each geometry, the input vector is the 10D set of ellipse parameters; the output is the computed Young's modulus (from the F=K·u relation).
+3. **Dataset Assembly:** For each geometry, the input vector is the 10D set of ellipse parameters; the output is the computed Young's modulus.
 4. **Neural Network Training:** Training a feedforward neural network (regression) to predict Young's modulus based only on ellipse parameters (geometry→modulus).
 5. **Surrogate Prediction:** Fast evaluation of modulus for new geometries using the trained neural network, bypassing the need for full FEM.
 
@@ -20,9 +27,9 @@ This project aims to train a feedforward neural network to predict the modulus o
 ## Features
 
 - **Parametric 2D geometry:** Plate with two elliptical holes, with randomizable position, orientation, and size.
-- **Mesh and simulation automation:** Generate 5000+ unique samples and automatically simulate them in CalculiX.
-- **Comprehensive dataset:** All input parameters and computed outputs are tabulated in a CSV (Excel-compatible), ready for ML workflows.
-- **Neural network regression:** Feedforward architecture trained for direct modulus of elasticity inference.
+- **Mesh automation:** Scriptable generation of unique mesh samples (Target: 5000+ samples).
+- **Data Pipeline:** Automated export of parameters to CSV, ready for ML workflows.
+- **Surrogate Modeling:** Direct inference of Young's modulus using Deep Learning.
 
 ---
 
@@ -39,17 +46,6 @@ This project aims to train a feedforward neural network to predict the modulus o
 │ ├── full_dataset.csv # Final dataset combining input and output
 │ └── ellipse_scatter.png # Visualization
 ├── meshes/ # Stored .msh mesh files
-
----
-
-## Example Data Table
-
-| id |  x1  |  y1  |  rx1  | ry1  | angle1 |  x2  |  y2  |  rx2 |  ry2 | angle2 | E (MPa) |
-|----|------|------|-------|------|--------|------|------|------|------|--------|---------|
-| 0  | 6.21 | 2.99 | 1.00  | 0.71 |  41.3  | 2.39 | 7.01 | 0.91 | 0.83 |  187.5 |  199000 |
-| ...| ...  | ...  |  ...  | ...  |  ...   | ...  | ...  | ...  | ...  |   ...  |   ...   |
-
----
 
 ## Example Workflow
 
