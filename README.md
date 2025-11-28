@@ -42,13 +42,6 @@ The pipeline integrates computational homogenization principles with deep learni
 ## Example Workflow
 
 1. **Generate dataset (meshes and parameter CSV):**
-
-
-
-
-## Example Workflow
-
-1. **Generate dataset (meshes and parameter CSV):**
     ```
     python mesh_generator.py
     ```
