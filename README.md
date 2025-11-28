@@ -8,7 +8,7 @@ The goal is to train a Feedforward Neural Network (FNN) to predict the **effecti
 
 ## Project Status
 
-This project is currently under active development.
+Project is currently under active development.
 
 - [x] **Phase 1:** Parametric mesh generation with GMSH (Completed)
 - [ ] **Phase 2:** FEM simulation & Homogenization with CalculiX (In Progress)
