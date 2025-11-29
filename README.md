@@ -36,7 +36,7 @@ For each geometry, CalculiX solves the linear elastic problem:
 **Problem Setup:**
 - Material: Isotropic, constant $E_{\text{mat}}$, constant Poisson's ratio $\nu$
 - Boundary Condition: Prescribed displacement $u$ on plate edges
-- Solver: Assembles global stiffness matrix $\mathbf{K}$, solves $\mathbf{K}\mathbf{u} = \mathbf{F}$
+- Solver: Assembles global stiffness matrix $\mathbf{K}$ from element matrices and solves the linear system $\mathbf{K}\mathbf{u} = \mathbf{F}$ for nodal displacements $\mathbf{u}$.
 
 From the displacement field, stresses and strains are evaluated at Gauss integration points across all elements.
 
@@ -69,7 +69,7 @@ A regression FNN learns the mapping from geometry to effective Young's modulus. 
 
 ## Dataset & Training
 
-- **Data Set (target):** ~5000 samples
+- **Target dataset size:** ~5000 samples
 - **Input:** 10-dimensional geometric feature vector
 - **Output:** Single scalar $E_{\text{eff}}$
 - **Train/Test Split:** (to be defined)
