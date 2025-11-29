@@ -32,7 +32,7 @@ The pipeline integrates computational homogenization principles with deep learni
 3. **Homogenization (Post-Processing):** 
    - Stresses are extracted from **Gauss integration points** across all elements.
    - **Average stress ($\bar{\sigma}$)** and **average strain ($\bar{\varepsilon}$)** are computed via volume integration over the domain ($V$).
-   - The Effective Stiffness Matrix ($\mathbf{C}_{eff}$) is identified ($\bar{\boldsymbol{\sigma}} = \mathbf{C}_{eff} \cdot \bar{\boldsymbol{\varepsilon}}$), from which the **Effective Young's Modulus ($E_{eff}$)** is extracted.
+   - The effective stiffness matrix $\mathbf{C}_{\text{eff}}$ is identified from the homogenized constitutive relation $\bar{\boldsymbol{\sigma}} = \mathbf{C}_{\text{eff}} \cdot \bar{\boldsymbol{\varepsilon}}$, from which the effective Young's modulus $E_{\text{eff}}$ is extracted.
 
 4. **Machine Learning:** 
    - A regression neural network maps the 10-dimensional geometric vector directly to $E_{eff}$.
