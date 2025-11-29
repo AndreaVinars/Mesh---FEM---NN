@@ -118,7 +118,7 @@ The global stiffness matrix is the assembled collection of all element stiffness
 ## Author
 
 **Andrea Vinarš**  
-Email: [andrea.vinars3@gmail.com]
+Email: andrea.vinars3@gmail.com
 
 ---
 
