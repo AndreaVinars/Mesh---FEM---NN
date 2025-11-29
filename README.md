@@ -24,7 +24,7 @@ Automated generation of 2D rectangular plates with two elliptical holes.
 
 **Geometric Parameters (per hole):**
 - Position: $x, y$ (center coordinates)
-- Semi-axes: $r_x, r_y$ 
+- Semi-axes: $r_x, r_y$ (semi-major and semi-minor axis lengths)
 - Orientation: $\theta$ (rotation angle)
 
 Each configuration is randomized and stored with an associated mesh file (.msh).
