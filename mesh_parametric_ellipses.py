@@ -344,7 +344,7 @@ Load, 1, 1, 0.005
 
 **OUTPUT REQUESTS
 *NODE PRINT
-U, S
+U
 
 *EL PRINT, ELSET=Plate
 S
