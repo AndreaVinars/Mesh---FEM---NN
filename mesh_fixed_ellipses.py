@@ -207,9 +207,8 @@ calculix_input = f"""{mesh_content}
 *SOLID SECTION, ELSET=Plate, MATERIAL=Steel
 1.0
 
-*STEP, NLGEOM=NO, INC=100
+*STEP, NLGEOM=NO
 *STATIC
-0.01, 1.0
 
 **FIXED SUPPORT (left edge)
 *BOUNDARY
