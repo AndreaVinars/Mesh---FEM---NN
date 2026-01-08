@@ -9,7 +9,6 @@ This script:
 4. Generates a CalculiX input file with material and boundary conditions
 5. Runs the structural analysis using CalculiX solver
 
-This script will be used for neural network error estimation
 
 Author: Andrea Vinarš
 """
