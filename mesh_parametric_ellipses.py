@@ -330,9 +330,9 @@ def generate_inp(params, ccx_input, sim_number):
 *SOLID SECTION, ELSET=Plate, MATERIAL=Steel
 1.0
 
-*STEP, NLGEOM=NO, INC=100
+*STEP, NLGEOM=NO
 *STATIC
-0.01, 1.0
+
 
 **BOUNDARY CONDITIONS (Fixed support)
 *BOUNDARY
@@ -519,7 +519,7 @@ def stress_histograms(sim_number):
     Reads stress results from CalculiX output file and creates a histogram
     showing the distribution of Von Mises stresses across integration points.
     
-    NOTE: For >10 simulations, disable function to save time and avoid chaos!
+    NOTE: For >10 simulations, disable function to save time and avoid chaos! DIAGNOSTIC FUNCTION - NOT FOR ML TRAINING
     
     Parameters
     ----------
