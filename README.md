@@ -98,9 +98,7 @@ The global stiffness matrix is the assembled collection of all element stiffness
 
 ## Next Steps
 
-- [ ] Implement batch execution of CalculiX simulations.
 - [ ] Develop post-processing script for volume averaging (Homogenization).
-- [ ] Parallelization for faster mesh/FEM generation.
 - [ ] Validation against FEM ground truth (MSE/R² metrics).
 - [ ] Jupyter notebook example for reproducibility.
 
