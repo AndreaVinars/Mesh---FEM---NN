@@ -9,8 +9,9 @@ The goal is to train a Feedforward Neural Network (FNN) to predict the **effecti
 ## Project Status
 
 - [x] **Phase 1:** Parametric mesh generation with GMSH (Completed)
-- [ ] **Phase 2:** FEM simulation & Homogenization with CalculiX (In Progress)
-- [ ] **Phase 3:** Dataset assembly & Neural Network training (Planned)
+- [x] **Phase 2:** FEM simulation & Homogenization with CalculiX (Completed)
+- [ ] **Phase 3:** Dataset assembly & Neural Network training (In progress)
+- [ ] **Phase 4:** Results evaluation
 
 ---
 
@@ -98,7 +99,7 @@ The global stiffness matrix is the assembled collection of all element stiffness
 
 ## Next Steps
 
-- [ ] Develop post-processing script for volume averaging (Homogenization).
+- [ ] Train NN
 - [ ] Validation against FEM ground truth (MSE/R² metrics).
 - [ ] Jupyter notebook example for reproducibility.
 
@@ -106,8 +107,8 @@ The global stiffness matrix is the assembled collection of all element stiffness
 
 ## Requirements
 - **Python 3.x**
-- **Gmsh SDK** (Mesh generation)
-- **CalculiX (ccx)** (FEM Solver)
+- **Gmsh 4.1.0** (Mesh generation)
+- **CalculiX 2.23 (ccx)** (FEM Solver)
 - **NumPy & Pandas** (Data handling)
 - **PyTorch** (Planned for ML)
 
