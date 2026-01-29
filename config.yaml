@@ -1,0 +1,49 @@
+# =============================================================================
+# FEA Simulation Configuration - Tensile Plate with Elliptical Holes
+# =============================================================================
+
+# Plate geometry (mm)
+plate:
+  width: 12.0          # Plate width (w)
+  height: 12.0         # Plate height (h)
+  thickness: 1.0       # Plate thickness
+
+# Loading conditions
+loading:
+  elongation: 0.005    # Applied elongation in x-direction (mm)
+
+# Material properties (Steel)
+material:
+  name: "Steel"
+  youngs_modulus: 210000.0   # Young's modulus (MPa)
+  poisson_ratio: 0.3         # Poisson's ratio
+
+# LHS Parameter sampling bounds for elliptical holes
+# Format: [x1, y1, rx1, ry1, angle1, x2, y2, rx2, ry2, angle2]
+# where: x,y = center position, rx,ry = semi-axes, angle = rotation (degrees)
+lhs_bounds:
+  lower: [3.0, 3.0, 0.3, 0.3, 0.0,   3.0, 3.0, 0.3, 0.3, 0.0]    # Minimum values
+  upper: [9.0, 9.0, 3.0, 2.0, 360.0, 9.0, 9.0, 3.0, 2.0, 360.0]  # Maximum values
+
+# Simulation settings
+simulation:
+  num_simulations: 20      # Total number of simulations to run
+  n_jobs: 4                # Number of parallel CPU cores to use
+  seed: 1                  # Random seed for reproducibility
+  timeout_seconds: 60      # Maximum time per simulation
+
+# Mesh quality thresholds
+mesh_quality:
+  min_acceptable: 0.6      # Minimum element quality threshold
+  max_poor_elements: 20    # Maximum allowed number of elements with less than 0.6 quality
+
+# CalculiX executable paths
+paths:
+  calculix: "-/ccx_static.exe"
+  working_dir: "-"
+
+# Output directories
+output:
+  input_files: "input_files"    # Directory for .inp files
+  output_files: "output_files"  # Directory for CalculiX results
+  data_dir: "data"              # Directory for CSV and plots
