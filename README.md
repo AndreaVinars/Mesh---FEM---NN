@@ -71,7 +71,8 @@ The `calculate_youngs_modulus()` function parses the mesh and stress files, comp
 **Assumptions:**
 - Linear elastic regime (small strains)
 - Plane stress conditions  
-- Uniform strain distribution across the width (Saint-Venant principle)
+- Homogenization: Effective modulus links average stress to applied (nominal) strain
+- Uniform boundary displacement (prescribed elongation)
 
 ### 4. Neural Network Training
 
