@@ -47,12 +47,31 @@ From the displacement field, stresses and strains are evaluated at Gauss integra
 - Average stress: $\bar{\boldsymbol{\sigma}} = \frac{1}{V}\int_V \boldsymbol{\sigma} \, dV$
 - Average strain: $\bar{\boldsymbol{\varepsilon}} = \frac{1}{V}\int_V \boldsymbol{\varepsilon} \, dV$
 
-**Constitutive Identification:**
-The effective stiffness matrix is identified from:
+**Effective Young's Modulus Calculation:**
 
-$$\bar{\boldsymbol{\sigma}} = \mathbf{C}_{\text{eff}} \cdot \bar{\boldsymbol{\varepsilon}}$$
+The effective modulus is obtained from the ratio of homogenized stress to applied strain:
 
-The effective Young's modulus $E_{\text{eff}}$ is extracted from $\mathbf{C}_{\text{eff}}$.
+$$E_{eff} = \frac{\bar{\sigma}_{xx}}{\bar{\varepsilon}_{xx}}$$
+
+**Homogenized Stress** (area-weighted average):
+
+$$\bar{\sigma}_{xx} = \frac{\sum_{i} \sigma_{xx,i} \cdot A_i}{\sum_{i} A_i}$$
+
+Where:
+- $\sigma_{xx,i}$ = Axial stress of element $i$ (from CalculiX `.dat` file)
+- $A_i$ = Area of element $i$ (computed from nodal coordinates in `.inp` file)
+
+**Applied Strain** (prescribed boundary condition):
+
+$$\bar{\varepsilon}_{xx} = \frac{\text{elongation}}{\text{plate width}}$$
+
+**Implementation:**
+The `calculate_youngs_modulus()` function parses the mesh and stress files, computes element areas using the cross-product formula, performs area-weighted averaging of Sxx stresses, and divides by the applied strain to obtain $E_{eff}$.
+
+**Assumptions:**
+- Linear elastic regime (small strains)
+- Plane stress conditions  
+- Uniform strain distribution across the width (Saint-Venant principle)
 
 ### 4. Neural Network Training
 
@@ -107,8 +126,8 @@ The global stiffness matrix is the assembled collection of all element stiffness
 
 ## Requirements
 - **Python 3.x**
-- **Gmsh 4.1.0** (Mesh generation)
-- **CalculiX 2.23 (ccx)** (FEM Solver)
+- **Gmsh 4.15.0** (Mesh generation)
+- **CalculiX 2.2x (ccx)** (FEM Solver)
 - **NumPy & Pandas** (Data handling)
 - **PyTorch** (Planned for ML)
 
