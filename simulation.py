@@ -784,7 +784,7 @@ if __name__ == "__main__":
         params_csv_histograms(successful_results, DATA_DIR)
         main_logger.info("Done!")
         
-    # Save rejected simulations for debugging
+    # Save rejected simulations for debugging (only 16 out of 5000 simulations were rejected (seed=1))
     if rejected_results:
         main_logger.info("")
         main_logger.info(f"Found {len(rejected_results)} problematic simulations:")
@@ -793,4 +793,5 @@ if __name__ == "__main__":
     main_logger.info("")
     main_logger.info("All logs saved to logs/ directory")
     main_logger.info("Individual simulation logs: logs/sim_XXXX.log")
+
     main_logger.info("Main log: logs/main.log")
