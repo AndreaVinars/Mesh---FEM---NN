@@ -10,7 +10,7 @@ The goal is to train a Feedforward Neural Network (FNN) to predict the **effecti
 
 - [x] **Phase 1:** Parametric mesh generation with GMSH (Completed)
 - [x] **Phase 2:** FEM simulation & Homogenization with CalculiX (Completed)
-- [ ] **Phase 3:** Dataset assembly & Neural Network training (In progress)
+- [ ] **Phase 3:** Neural Network training (In progress)
 - [ ] **Phase 4:** Results evaluation
 
 ---
