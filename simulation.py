@@ -783,8 +783,16 @@ if __name__ == "__main__":
         main_logger.info("Generating CSV and PNG files with parameters...")
         params_csv_histograms(successful_results, DATA_DIR)
         main_logger.info("Done!")
-        
-    # Save rejected simulations for debugging (only 16 out of 5000 simulations were rejected (seed=1))
+
+
+    # Save rejected simulations for debugging
+    # Note: 16 simulations (0.32%) were excluded from ML dataset due to nonpositive 
+    # Jacobian determinants in mesh elements, causing the CalculiX solver to terminate (seed = 1)
+    # TODO: Implement automatic mesh optimization for simulations with poor element quality
+    # TODO: Test robustness across different seed values
+    # TODO: Current mesh optimization functions ("Netgen", "Gmsh") are designed for 3D tetrahedral 
+    #       elements, plan to test "HighOrder" and "Laplace2D" as potential replacements in the next update
+
     if rejected_results:
         main_logger.info("")
         main_logger.info(f"Found {len(rejected_results)} problematic simulations:")
@@ -795,3 +803,4 @@ if __name__ == "__main__":
     main_logger.info("Individual simulation logs: logs/sim_XXXX.log")
 
     main_logger.info("Main log: logs/main.log")
+
