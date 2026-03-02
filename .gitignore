@@ -1,0 +1,22 @@
+# Local config (contains private paths)
+config.yaml
+
+# Generated outputs
+logs/
+input_files/
+output_files/
+data/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+
+# Virtual env
+.venv/
+venv/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
