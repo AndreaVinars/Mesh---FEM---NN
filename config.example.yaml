@@ -1,0 +1,54 @@
+# =============================================================================
+# FEA Simulation Configuration - Tensile Plate with Elliptical Holes
+# =============================================================================
+
+# Plate geometry (mm)
+plate:
+  width: 12.0          # Plate width (w)
+  height: 12.0         # Plate height (h)
+  thickness: 1.0       # Plate thickness
+
+# Loading conditions
+loading:
+  elongation: 0.005    # Applied elongation in x-direction (mm)
+
+# Material properties (Steel)
+material:
+  name: "Steel"
+  youngs_modulus: 210000.0   # Young's modulus (MPa)
+  poisson_ratio: 0.3         # Poisson's ratio
+
+# LHS Parameter sampling bounds for elliptical holes
+# Format: [x1, y1, rx1, ry1, angle1, x2, y2, rx2, ry2, angle2]
+# where: x,y = center position, rx,ry = semi-axes, angle = rotation (degrees)
+lhs_bounds:
+  lower: [3.0,  0.0,  0.3, 0.3,   0.0, 3.0,  0.0,  0.3, 0.3,   0.0]
+  upper: [9.0, 12.0,  3.0, 2.0, 359.9, 9.0, 12.0,  3.0, 2.0, 359.9]
+
+# Simulation settings
+simulation:
+  num_simulations: 20      # Small default for quick tests
+  n_jobs: 6                # Parallel CPU workers
+  seed: 30                 # Random seed for reproducibility
+  timeout_seconds: 60      # Max time per simulation
+
+# Mesh sizing (used by the Gmsh Threshold field)
+mesh:
+  size_min: 0.10           # Fine mesh size near holes (mm)
+  size_max: 0.60           # Coarse mesh size far from holes (mm)
+
+# Mesh quality thresholds
+mesh_quality:
+  poor_quality_threshold: 0.6   # Elements below this are counted as "poor"
+  max_poor_elements: 20         # Max allowed number of poor elements
+
+# Executable paths
+paths:
+  calculix: "CHANGE_ME"    # Full path to ccx executable
+  working_dir: "."         # Repo root (resolved relative to this config file)
+
+# Output directories (relative to working_dir)
+output:
+  input_files: "input_files"    # Directory for .inp files
+  output_files: "output_files"  # Directory for solver results
+  data_dir: "data"              # Directory for CSV and plots
