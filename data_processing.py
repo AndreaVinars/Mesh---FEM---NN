@@ -231,6 +231,17 @@ def params_csv_histograms(
             'angle2': params['hole2']['angle'],
             'angle2_sin': round(np.sin(np.radians(params['hole2']['angle'])), 4),
             'angle2_cos': round(np.cos(np.radians(params['hole2']['angle'])), 4),
+            
+            'delta_theta': round(np.sin(np.radians(params['hole2']['angle'])) * np.sin(np.radians(params['hole1']['angle']))
+                        + np.cos((np.radians(params['hole2']['angle'])))*np.cos((np.radians(params['hole1']['angle']))), 4),
+            
+            'dx': round(params['hole1']['x'] - params['hole2']['x'], 2),
+            'dy': round(params['hole1']['y'] - params['hole2']['y'], 2),
+            
+            'd': round(np.sqrt((params['hole1']['x'] - params['hole2']['x']) ** 2 +
+                               (params['hole1']['y'] - params['hole2']['y'])** 2), 2),
+            'A1': round(float(np.pi) * params['hole1']['rx'] * params['hole1']['ry'], 2),
+            'A2': round(float(np.pi) * params['hole2']['rx'] * params['hole2']['ry'], 2),
             'E_eff': params['E_eff'],
             'avg_quality': params['avg_quality']
         })
@@ -326,8 +337,7 @@ def save_rejected_csv(
             'ry2': params['hole2']['ry'],
             'angle2': params['hole2']['angle'],
             'angle2_sin': round(np.sin(np.radians(params['hole2']['angle'])), 4),
-            'angle2_cos': round(np.cos(np.radians(params['hole2']['angle'])), 4),
-            'avg_quality': params['avg_quality']
+            'angle2_cos': round(np.cos(np.radians(params['hole2']['angle'])), 4)
         }
         data.append(row)
 
