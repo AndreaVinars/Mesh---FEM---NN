@@ -20,3 +20,8 @@ venv/
 Thumbs.db
 .vscode/
 .idea/
+
+# FNN
+logs/
+models/
+plots/
