@@ -21,10 +21,19 @@ import os
 import numpy as np
 import subprocess
 import pandas as pd
+from pathlib import Path
 
 # ========== WORKING DIRECTORY ==========
-os.chdir("-")
-calculix_path = r"-/ccx_static.exe"
+# Output files will be written into DEFAULT_WORKDIR unless you change it.
+DEFAULT_WORKDIR = Path(__file__).resolve().parent
+
+# CalculiX executable/command:
+# - Option A (recommended): set environment variable CALCULIX_CMD
+#   e.g. on Windows PowerShell:  $env:CALCULIX_CMD = 'C:/path/to/ccx_static.exe'
+DEFAULT_CALCULIX_CMD = os.environ.get("CALCULIX_CMD") or ("ccx_static.exe" if os.name == "nt" else "ccx")
+
+# Show Gmsh GUI (set True only for interactive debugging)
+SHOW_GUI = False
 
 # ========== GEOMETRY PARAMETERS ==========
 # Plate dimensions and applied load [mm]
@@ -39,7 +48,7 @@ radX1, radY1 = 2.56, 0.57  # Semi-major and semi-minor axes [mm]
 angle1 = 170               # Rotation angle [degrees]
 
 # Hole 2 parameters  
-x2, y2 = 4.57, 5.44        # Center coordinates [mm]
+x2, y2 = 7, 5.44           # Center coordinates [mm]
 radX2, radY2 = 1.64, 0.73  # Semi-major and semi-minor axes [mm]
 angle2 = -147.6            # Rotation angle [degrees]
 
@@ -212,257 +221,284 @@ def calculate_E(inp_path, dat_path, output="results.csv"):
     return df
 
 
-# ========== INITIALIZE GMSH ==========
-gmsh.initialize()
-gmsh.model.add("tensile_plate_fea")
-
-# ========== GEOMETRY CREATION ==========
-# Create base rectangular plate
-plate = gmsh.model.occ.addRectangle(0, 0, 0, width, height)
-
-# ---------- ELLIPSE 1 ----------
-# Create first elliptical hole with rotation
-e1_c = gmsh.model.occ.addEllipse(x1, y1, 0, radX1, radY1)   
-gmsh.model.occ.rotate([(1, e1_c)], x1, y1, 0, 0, 0, 1, angle1*np.pi/180)
-e1_cl = gmsh.model.occ.addCurveLoop([e1_c])
-hole1 = gmsh.model.occ.addPlaneSurface([e1_cl])
-
-# ---------- ELLIPSE 2 ----------
-# Create second elliptical hole with rotation
-e2_c = gmsh.model.occ.addEllipse(x2, y2, 0, radX2, radY2)
-gmsh.model.occ.rotate([(1, e2_c)], x2, y2, 0, 0, 0, 1, angle2*np.pi/180)
-e2_cl = gmsh.model.occ.addCurveLoop([e2_c])
-hole2 = gmsh.model.occ.addPlaneSurface([e2_cl])
-
-gmsh.model.occ.synchronize()
-
-# ========== BOOLEAN OPERATIONS ==========
-# Cut the two holes from the plate
-cut_result = gmsh.model.occ.cut([(2, plate)], [(2, hole1), (2, hole2)])
-new_plate_tag = cut_result[0][0][1]
-print("[GEOMETRY] Cut operation completed")
-
-gmsh.model.occ.synchronize()
-
-# ========== ADAPTIVE MESH REFINEMENT ==========
-"""
-Strategy: Create a mesh size field that varies with distance to ellipse curves
-- Fine mesh (SizeMin) near hole boundaries for accurate stress capture
-- Coarse mesh (SizeMax) far from holes to reduce total element count
-- Smooth transition between fine and coarse regions
-"""
-
-# Field 1: Distance from ellipse 1
-# Calculates distance from each point in domain to curve e1_c
-field1 = gmsh.model.mesh.field.add("Distance")
-gmsh.model.mesh.field.setNumber(field1, "Sampling", 100)    # 100 sample points on curve
-gmsh.model.mesh.field.setNumbers(field1, "EdgesList", [e1_c])
-print("[MESH] Distance field 1 created for ellipse 1")
-
-# Field 2: Distance from ellipse 2
-field2 = gmsh.model.mesh.field.add("Distance")
-gmsh.model.mesh.field.setNumber(field2, "Sampling", 100)
-gmsh.model.mesh.field.setNumbers(field2, "EdgesList", [e2_c])
-print("[MESH] Distance field 2 created for ellipse 2")
-
-# Field 3: Minimum distance to either ellipse
-# For each point: min_distance = min(distance_to_e1, distance_to_e2)
-field3 = gmsh.model.mesh.field.add("Min")
-gmsh.model.mesh.field.setNumbers(field3, "FieldsList", [field1, field2])
-print("[MESH] Min field 3 created (combines both distances)")
-
-# Field 4: Threshold - controls element size based on distance
-# Creates smooth transition from fine to coarse mesh
-field4 = gmsh.model.mesh.field.add("Threshold")
-gmsh.model.mesh.field.setNumber(field4, "InField", field3)
-gmsh.model.mesh.field.setNumber(field4, "SizeMin", 0.1)   # Fine mesh size [mm]
-gmsh.model.mesh.field.setNumber(field4, "SizeMax", 0.8)   # Coarse mesh size [mm]
-gmsh.model.mesh.field.setNumber(field4, "DistMin", 0.0)   # Transition start distance [mm]
-gmsh.model.mesh.field.setNumber(field4, "DistMax", 5.0)   # Transition end distance [mm]
-print("[MESH] Threshold field 4 created")
-
-# Set field4 as background mesh (master size field)
-gmsh.model.mesh.field.setAsBackgroundMesh(field4)
-
-# ========== MESH GENERATION ==========
-# Global element size as fallback
-all_points = gmsh.model.getEntities(0)
-gmsh.model.mesh.setSize(all_points, 0.8)
-
-# Generate 2D triangular mesh with 2nd order elements (CPS6)
-gmsh.model.mesh.generate(2)
-gmsh.model.mesh.setOrder(2)
-print("[MESH] 2D mesh generated with adaptive refinement")
-
-# Optimize mesh quality
-gmsh.model.mesh.optimize("Netgen")    
-gmsh.model.mesh.optimize("Gmsh")
-
-# Print mesh quality statistics
-element_data = gmsh.model.mesh.getElements(dim=2)
-element_tags = element_data[1][0]
-element_qualities = gmsh.model.mesh.getElementQualities(elementTags=element_tags)
-
-print("\n[Mesh Quality Distribution]")
-for lower in np.arange(0, 1, 0.1):
-    upper = lower + 0.1
-    count = np.sum((element_qualities >= lower) & (element_qualities < upper))
-    pct = 100 * count / len(element_qualities)
-    print(f"  {lower:.2f}-{upper:.2f}: {count:4d} ({pct:5.1f}%)")
-
-# ========== BOUNDARY NODE IDENTIFICATION ==========
-"""
-Find nodes on:
-- Left edge (x ≈ 0): Fixed support (displacement constraints)
-- Right edge (x ≈ width): Applied prescribed displacement (tension)
-"""
-
-TOL = 1e-4  # Tolerance for boundary detection [mm]
-left_nodes, right_nodes = [], []
-
-# Extract node coordinates from mesh
-node_tags, node_coords, _ = gmsh.model.mesh.getNodes()
-node_coords = node_coords.reshape(-1, 3)  # Convert to Nx3 array
- 
-for i, tag in enumerate(node_tags):
-    x = node_coords[i][0]  # X-coordinate
+def main():
     
-    # Fixed boundary: left edge (x ≈ 0)
-    if abs(x) < TOL:
-        left_nodes.append(int(tag))
-    
-    # Load boundary: right edge (x ≈ width)
-    if abs(x - width) < TOL:
-        right_nodes.append(int(tag))
+    """Run a single fixed-geometry simulation (mesh -> CCX -> homogenization)."""
 
-print(f"[BOUNDARIES] Fixed nodes: {len(left_nodes)}  |  Load nodes: {len(right_nodes)}")
+    os.chdir(DEFAULT_WORKDIR)
+    calculix_path = DEFAULT_CALCULIX_CMD
+    print(f"[CONFIG] Working directory: {DEFAULT_WORKDIR}")
+    print(f"[CONFIG] CalculiX command: {calculix_path}")
 
-# ========== PHYSICAL GROUPS ==========
-# Define material region for section assignment
-gmsh.model.addPhysicalGroup(2, [new_plate_tag], tag=3, name="Plate")
-
-# ========== MESH FILE OUTPUT ==========
-gmsh.write("tensile_FEA_mesh.inp")
-print("[GMSH] Mesh file saved: tensile_FEA_mesh.inp")
-
-# Display mesh in Gmsh GUI
-gmsh.fltk.run()
-gmsh.finalize()
-
-# ========== NODE SETS FOR CALCULIX ==========
-"""
-CalculiX requires node sets for applying boundary conditions
-Format: *NSET, NSET=SetName
-         nodeID1, nodeID2, nodeID3, ...
-"""
-
-# Create fixed support node set
-nset_fixed = "*NSET, NSET=Fixed\n"
-for i, node in enumerate(left_nodes):
-    if i > 0 and i % 16 == 0:  
-        nset_fixed += "\n"
-    nset_fixed += f"{node}, "
-nset_fixed = nset_fixed.rstrip(", ") + "\n"
-
-# Create load node set
-nset_load = "*NSET, NSET=Load\n"
-for i, node in enumerate(right_nodes):
-    if i > 0 and i % 16 == 0:
-        nset_load += "\n"
-    nset_load += f"{node}, "
-nset_load = nset_load.rstrip(", ") + "\n"
-
-# ========== READ MESH FILE ==========
-# Read generated mesh to embed in CalculiX input
-with open("tensile_FEA_mesh.inp", "r") as f:
-    mesh_content = f.read()
-
-# Remove temporary mesh file
-os.remove("tensile_FEA_mesh.inp")
-
-# ========== CREATE CALCULIX INPUT FILE ==========
-"""
-Complete CalculiX input file containing:
-- Mesh (nodes and elements from Gmsh)
-- Node sets for boundary conditions
-- Material properties (Steel: E=210 GPa, ν=0.3)
-- Load step definition
-- Boundary conditions (fixed support + prescribed displacement)
-- Output requests (stress only for .dat processing)
-"""
-
-calculix_input = f"""{mesh_content}
-
-{nset_fixed}
-
-{nset_load}
-
-*MATERIAL, NAME=Steel
-*ELASTIC
-210000, 0.3
-
-*SOLID SECTION, ELSET=Plate, MATERIAL=Steel
-1.0
-
-*STEP, NLGEOM=NO
-*STATIC
-
-** BOUNDARY CONDITIONS
-*BOUNDARY
-Fixed, 1, 3, 0.0
-
-** APPLIED LOAD (Prescribed displacement)
-*BOUNDARY
-Load, 1, 1, {elongation}
-
-** OUTPUT REQUESTS
-*EL PRINT, ELSET=Plate
-S
-
-*END STEP
-"""
-
-# Write CalculiX input file
-with open("tensile_FEA.inp", "w") as f:
-    f.write(calculix_input)
-
-print("[CalculiX] Input file created: tensile_FEA.inp")
-
-# ========== RUN CALCULIX SOLVER ==========
-"""
-Execute CalculiX solver with error handling:
-- Timeout: 60 seconds (abort if analysis runs too long)
-- Capture stdout/stderr for diagnostics
-"""
-
-try:
-    print("[CalculiX] Starting structural analysis...")
-    result = subprocess.run([calculix_path, "tensile_FEA"],
-                            capture_output=True,
-                            text=True,
-                            timeout=60)
-    
-    if result.returncode == 0:
-        print("[CalculiX] Analysis completed successfully")
-        print("[OUTPUT] Results: tensile_FEA.dat (stress data for homogenization)")
-    else:
-        print("[CalculiX] Error in analysis:")
-        print(f"{result.stderr}")
+    try:
+        # ========== INITIALIZE GMSH ==========
+        gmsh.initialize()
+        gmsh.model.add("tensile_plate_fea")
         
-except FileNotFoundError:
-    print(f"[CalculiX] Error: Executable not found at: {calculix_path}")
-except subprocess.TimeoutExpired:
-    print("[CalculiX] Error: Analysis timeout - exceeded 60 seconds")
-except Exception as e:
-    print(f"[CalculiX] Unexpected error: {e}")
+        # ========== GEOMETRY CREATION ==========
+        # Create base rectangular plate
+        plate = gmsh.model.occ.addRectangle(0, 0, 0, width, height)
+        
+        # ---------- ELLIPSE 1 ----------
+        # Create first elliptical hole with rotation
+        e1_c = gmsh.model.occ.addEllipse(x1, y1, 0, radX1, radY1)   
+        gmsh.model.occ.rotate([(1, e1_c)], x1, y1, 0, 0, 0, 1, angle1*np.pi/180)
+        e1_cl = gmsh.model.occ.addCurveLoop([e1_c])
+        hole1 = gmsh.model.occ.addPlaneSurface([e1_cl])
+        
+        # ---------- ELLIPSE 2 ----------
+        # Create second elliptical hole with rotation
+        e2_c = gmsh.model.occ.addEllipse(x2, y2, 0, radX2, radY2)
+        gmsh.model.occ.rotate([(1, e2_c)], x2, y2, 0, 0, 0, 1, angle2*np.pi/180)
+        e2_cl = gmsh.model.occ.addCurveLoop([e2_c])
+        hole2 = gmsh.model.occ.addPlaneSurface([e2_cl])
+        
+        center1 = gmsh.model.occ.addPoint(x1, y1, 0)
+        center2 = gmsh.model.occ.addPoint(x2, y2, 0)
+        print(f"[MESH] Center points added: {center1}, {center2}")
+        
+        gmsh.model.occ.synchronize()
+        
+        # ========== BOOLEAN OPERATIONS ==========
+        # Cut the two holes from the plate
+        cut_result = gmsh.model.occ.cut([(2, plate)], [(2, hole1), (2, hole2)])
+        new_plate_tag = cut_result[0][0][1]
+        print("[GEOMETRY] Cut operation completed")
+        
+        gmsh.model.occ.synchronize()
+        
+        # ========== ADAPTIVE MESH REFINEMENT ==========
+        
+        """
+        Strategy: Create a mesh size field that varies with distance to ellipse curves
+        - Fine mesh (SizeMin) near hole boundaries for accurate stress capture
+        - Coarse mesh (SizeMax) far from holes to reduce total element count
+        - Smooth transition between fine and coarse regions
+        """
+        
+        # Field 1: Distance from ellipse 1 center
+        field1 = gmsh.model.mesh.field.add("Distance")
+        gmsh.model.mesh.field.setNumbers(field1, "PointsList", [center1])
+        print("[MESH] Distance field 1 created for ellipse 1 center")
 
-# ========== POST-PROCESSING ==========
-print("\n[Post-processing] Extracting results and computing homogenized properties...")
-data = calculate_E(
-    inp_path="tensile_FEA.inp",
-    dat_path="tensile_FEA.dat",
-    output="results.csv"
-)
+        # Field 2: Distance from ellipse 2 center
+        field2 = gmsh.model.mesh.field.add("Distance")
+        gmsh.model.mesh.field.setNumbers(field2, "PointsList", [center2])
+        print("[MESH] Distance field 2 created for ellipse 2 center")
 
-print(f"\n[Complete] Results saved: {len(data)} elements processed")
-print(data.head())
+        # Field 3: Minimum distance to either center
+        field3 = gmsh.model.mesh.field.add("Min")
+        gmsh.model.mesh.field.setNumbers(field3, "FieldsList", [field1, field2])
+        print("[MESH] Min field 3 created (combines both distances)")
+
+        min_radius = min(radY1,radY2)
+        max_radius = max(radX1, radX2)
+
+        # Field 4: Threshold - controls element size based on distance
+        field4 = gmsh.model.mesh.field.add("Threshold")
+        gmsh.model.mesh.field.setNumber(field4, "InField", field3)
+        gmsh.model.mesh.field.setNumber(field4, "SizeMin", 0.1)   # Fine mesh size [mm]
+        gmsh.model.mesh.field.setNumber(field4, "SizeMax", 0.6)   # Coarse mesh size [mm]
+        gmsh.model.mesh.field.setNumber(field4, "DistMin", min_radius)   # Transition start distance [mm]
+        gmsh.model.mesh.field.setNumber(field4, "DistMax", max_radius * 3)   # Transition end distance [mm]
+        print("[MESH] Threshold field 4 created")
+
+        # Set field4 as background mesh
+        gmsh.model.mesh.field.setAsBackgroundMesh(field4)
+
+        gmsh.option.setNumber("Mesh.Algorithm", 6)  # algorithm id is version-dependent in Gmsh
+        gmsh.option.setNumber("Mesh.Smoothing", 3)
+        gmsh.option.setNumber("Mesh.MinCircleNodes", 32)
+        gmsh.option.setNumber("Mesh.MinCurveNodes", 8)
+        gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", 0)
+        
+        # Generate mesh (2D)
+        gmsh.model.mesh.generate(2)
+        
+        # Optimize mesh quality
+        gmsh.model.mesh.optimize("Laplace2D")
+        
+        # Set element order (CPS6 = second order triangle)
+        gmsh.model.mesh.setOrder(2)
+        
+        # ========== BOUNDARY NODE EXTRACTION ==========
+        
+        """
+        Identify nodes for:
+        - Fixed boundary: left edge (x=0)
+        - Load boundary: right edge (x=width)
+        Use tolerance because coordinates are floating point.
+        """
+        
+        left_nodes = []
+        right_nodes = []
+        TOL = 1e-4
+        
+        # Extract node coordinates from mesh
+        node_tags, node_coords, _ = gmsh.model.mesh.getNodes()
+        node_coords = node_coords.reshape(-1, 3)  # Convert to Nx3 array
+         
+        for i, tag in enumerate(node_tags):
+            x = node_coords[i][0]  # X-coordinate
+            
+            # Fixed boundary: left edge (x ≈ 0)
+            if abs(x) < TOL:
+                left_nodes.append(int(tag))
+            
+            # Load boundary: right edge (x ≈ width)
+            if abs(x - width) < TOL:
+                right_nodes.append(int(tag))
+        
+        print(f"[BOUNDARIES] Fixed nodes: {len(left_nodes)}  |  Load nodes: {len(right_nodes)}")
+        
+        # ========== PHYSICAL GROUPS ==========
+        # Define material region for section assignment
+        gmsh.model.addPhysicalGroup(2, [new_plate_tag], tag=3, name="Plate")
+        
+        # ========== MESH FILE OUTPUT ==========
+        gmsh.write("tensile_FEA_mesh.inp")
+        print("[GMSH] Mesh file saved: tensile_FEA_mesh.inp")
+        
+        # Display mesh in Gmsh GUI (optional)
+        if SHOW_GUI:
+            gmsh.fltk.run()
+        
+        
+        # ========== NODE SETS FOR CALCULIX ==========
+        
+        """
+        CalculiX requires node sets for applying boundary conditions
+        Format: *NSET, NSET=SetName
+                 nodeID1, nodeID2, nodeID3, ...
+        """
+        
+        # Create fixed support node set
+        nset_fixed = "*NSET, NSET=Fixed\n"
+        for i, node in enumerate(left_nodes):
+            if i > 0 and i % 16 == 0:  
+                nset_fixed += "\n"
+            nset_fixed += f"{node}, "
+        nset_fixed = nset_fixed.rstrip(", ") + "\n"
+        
+        # Create load node set
+        nset_load = "*NSET, NSET=Load\n"
+        for i, node in enumerate(right_nodes):
+            if i > 0 and i % 16 == 0:
+                nset_load += "\n"
+            nset_load += f"{node}, "
+        nset_load = nset_load.rstrip(", ") + "\n"
+        
+        # ========== READ AND PATCH MESH FILE ==========
+        
+        """
+        Read mesh file written by Gmsh and patch it to include NSET=NALL
+        so that CalculiX writes nodal results for all nodes.
+        """
+        
+        with open("tensile_FEA_mesh.inp", "r", encoding="utf-8", errors="ignore") as f:
+            mesh_content = f.read()
+        
+        mesh_content = mesh_content.replace("*NODE", "*NODE, NSET=NALL", 1)
+        
+        # Remove temporary mesh file
+        if os.path.exists("tensile_FEA_mesh.inp"):
+            os.remove("tensile_FEA_mesh.inp")
+        
+        # ========== CREATE CALCULIX INPUT FILE ==========
+        
+        """
+        Complete CalculiX input file containing:
+        - Mesh (nodes and elements from Gmsh)
+        - Node sets for boundary conditions
+        - Material properties (Steel: E=210 GPa, ν=0.3)
+        - Load step definition
+        - Boundary conditions (fixed support + prescribed displacement)
+        - Output requests (stress only for .dat processing)
+        """
+        
+        calculix_input = f"""{mesh_content}
+        
+        {nset_fixed}
+        
+        {nset_load}
+        
+        *MATERIAL, NAME=Steel
+        *ELASTIC
+        210000, 0.3
+        
+        *SOLID SECTION, ELSET=Plate, MATERIAL=Steel
+        1.0
+        
+        *STEP, NLGEOM=NO
+        *STATIC
+        
+        ** BOUNDARY CONDITIONS
+        *BOUNDARY
+        Fixed, 1, 3, 0.0
+        
+        ** APPLIED LOAD (Prescribed displacement)
+        *BOUNDARY
+        Load, 1, 1, {elongation}
+        
+        ** OUTPUT REQUESTS
+        *EL PRINT, ELSET=Plate
+        S
+        
+        *END STEP
+        """
+        
+        # Write CalculiX input file
+        with open("tensile_FEA.inp", "w") as f:
+            f.write(calculix_input)
+        
+        print("[CalculiX] Input file created: tensile_FEA.inp")
+        
+        # ========== RUN CALCULIX SOLVER ==========
+        """
+        Execute CalculiX solver with error handling:
+        - Timeout: 60 seconds (abort if analysis runs too long)
+        - Capture stdout/stderr for diagnostics
+        """
+        
+        try:
+            print("[CalculiX] Starting structural analysis...")
+            result = subprocess.run([calculix_path, "tensile_FEA"],
+                                    capture_output=True,
+                                    text=True,
+                                    timeout=60)
+            
+            if result.returncode == 0:
+                print("[CalculiX] Analysis completed successfully")
+                print("[OUTPUT] Results: tensile_FEA.dat (stress data for homogenization)")
+            else:
+                print("[CalculiX] Error in analysis:")
+                print(f"{result.stderr}")
+                
+        except FileNotFoundError:
+            print(f"[CalculiX] Error: Executable not found / not on PATH: {calculix_path}")
+        except subprocess.TimeoutExpired:
+            print("[CalculiX] Error: Analysis timeout - exceeded 60 seconds")
+        except Exception as e:
+            print(f"[CalculiX] Unexpected error: {e}")
+        
+        # ========== POST-PROCESSING ==========
+        print("\n[Post-processing] Extracting results and computing homogenized properties...")
+        data = calculate_E(
+            inp_path="tensile_FEA.inp",
+            dat_path="tensile_FEA.dat",
+            output="results.csv"
+        )
+        
+        print(f"\n[Complete] Results saved: {len(data)} elements processed")
+        print(data.head())
+    finally:
+
+        try:
+            if gmsh.isInitialized():
+                gmsh.finalize()
+        except Exception:
+            pass
+
+
+if __name__ == "__main__":  
+    main()
