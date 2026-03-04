@@ -28,7 +28,7 @@ from pathlib import Path
 DEFAULT_WORKDIR = Path(__file__).resolve().parent
 
 # CalculiX executable/command:
-# - Option A (recommended): set environment variable CALCULIX_CMD
+# - set environment variable CALCULIX_CMD
 #   e.g. on Windows PowerShell:  $env:CALCULIX_CMD = 'C:/path/to/ccx_static.exe'
 DEFAULT_CALCULIX_CMD = os.environ.get("CALCULIX_CMD") or ("ccx_static.exe" if os.name == "nt" else "ccx")
 
