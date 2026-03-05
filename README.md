@@ -160,11 +160,30 @@ A regression FNN learns the mapping from geometry to effective Young's modulus.
 
 ## Dataset & Training
 
-- **Baseline dataset size:** ~5000 samples
-- **Input (training):** 17-dimensional geometric feature vector
-- **Output:** Single scalar $E_{\text{eff}}$
-- **Train/Test Split:** 70/15/15
-- **Baseline:** Comparison against direct FEM evaluation
+### Dataset
+- The dataset is stored as a CSV file (not included in the repository).
+- Expected location (default in `Pipeline/FNN.py`): `./data/ml_data.csv`
+- Target: $E_{\text{eff}}$ (values are scaled to GPa in the training script via `/1000`).
+
+### Model inputs
+- **Training input (17 features):** an extended feature vector including derived quantities
+  (e.g., `sin/cos` of angles, relative distances, and areas).
+- **Planned inference input (10 parameters):** the user will provide only the basic ellipse geometry:
+  `x1, y1, rx1, ry1, angle1, x2, y2, rx2, ry2, angle2`.
+  The remaining 7 features will be computed internally before prediction.
+
+### Training setup (baseline)
+- Split: 70/15/15 (train/val/test), shuffle enabled
+- Preprocessing: `StandardScaler` fitted on the training set only
+- Loss: Smooth L1 (Huber) loss with `beta=0.2`
+- Optimizer: AdamW
+- LR scheduling: ReduceLROnPlateau
+- Early stopping: based on validation loss
+
+### Outputs
+- Best model weights: `models/`
+- Plots: `plots/`
+- Logs: `logs/`
 
 
 ## Mathematical Foundations
