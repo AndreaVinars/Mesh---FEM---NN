@@ -2,7 +2,7 @@
 
 This project automates the prediction of the **effective elastic properties** of a perforated 2D plate using a hybrid Finite Element Analysis (FEA) and Machine Learning approach.
 
-The goal is to train a Feedforward Neural Network (FNN) to predict the **effective Young's modulus** ($E_{\text{eff}}$) of a plate with two random elliptical holes directly from geometric parameters, bypassing computationally expensive FEM simulations for new geometries.
+The goal is to train a Feedforward Neural Network (FNN) to predict the **effective Young's modulus** $E_{\text{eff}}$ of a plate with two random elliptical holes directly from geometric parameters, bypassing computationally expensive FEM simulations for new geometries.
 
 ---
 
