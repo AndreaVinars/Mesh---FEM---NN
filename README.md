@@ -6,6 +6,26 @@ The goal is to train a Feedforward Neural Network (FNN) to predict the **effecti
 
 ---
 
+## Quickstart
+
+### 1) Install dependencies
+```bash
+pip install -r requirements.txt
+```
+### 2) Working directories
+- Setup working directory in your config
+- Install CalculiX (ccx) separately and set the executable path in your config.
+
+### 3) Run FEM simulations
+- Run Pipeline/simulation.py code
+- This script automatically creates/updates the dataset CSV
+-  output CSV: ./data/ml_data.csv
+
+### 4) Train the neural network
+- Run Pipeline/FNN
+
+---
+
 ## Results (baseline)
 
 Metrics obtained on a dataset of **5000 FEM simulations** using the baseline configuration in `config.example.yaml`.
@@ -129,6 +149,7 @@ The `calculate_youngs_modulus()` function parses the mesh and stress files, comp
   `x1, y1, rx1, ry1, angle1, x2, y2, rx2, ry2, angle2`.
   The missing 7 features will be computed internally before running the prediction.
 
+
 **Target Output:**
 
 $$E_{\text{eff}}$$
@@ -163,17 +184,6 @@ The global stiffness matrix is the assembled collection of all element stiffness
 3. **Solution:** With boundary conditions applied, the system is solved for $\mathbf{u}$.
 4. **Post-Processing:** Strains $\boldsymbol{\varepsilon} = \mathbf{B} \mathbf{u}$ and stresses $\boldsymbol{\sigma} = \mathbf{C} \boldsymbol{\varepsilon}$ are computed at Gauss points.
 5. **Homogenization:** Volume-averaged stresses and strains feed into the constitutive identification.
-
----
-
-## Installation / Dependencies
-
-- Tested with **Python 3.10+**.
-- Install Python packages:
-```bash
-pip install -r requirements.txt
-```
-Note: FEM runs require CalculiX (ccx) installed separately (set the path in config.example.yaml)
 
 ---
 
