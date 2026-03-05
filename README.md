@@ -98,7 +98,7 @@ From the displacement field, stresses and strains are evaluated at Gauss integra
 
 The effective modulus is obtained from the ratio of homogenized stress to applied strain:
 
-$$E_{eff} = \frac{\bar{\sigma}_{xx}}{\bar{\varepsilon}_{xx}}$$
+$$E_{\text{eff}} = \frac{\bar{\sigma}_{xx}}{\bar{\varepsilon}_{xx}}$$
 
 **Homogenized Stress** (area-weighted average):
 
