@@ -56,7 +56,7 @@ Metrics obtained on a dataset of **5000 FEM simulations** using the baseline con
 - [x] **Phase 2:** FEM simulation + homogenization (CalculiX)
 - [x] **Phase 3:** Dataset generation (CSV) + baseline FNN training & evaluation
 - [ ] **Phase 4 (in progress):** Inference interface + final polish
-  - [ ] Add a user-facing prediction function (input: geometry parameters → output: predicted \(E_{\text{eff}}\))
+  - [ ] Add a user-facing prediction function (input: geometry parameters → output: predicted $$E_{\text{eff}}$$)
   - [ ] Improve FNN accuracy (hyperparameter tuning / feature engineering / training strategy)
   - [ ] Add debug utilities for rejected geometries (mesh quality / solver failures / filtering reasons)
 
