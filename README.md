@@ -64,7 +64,7 @@ Metrics obtained on a dataset of **5000 FEM simulations** using the baseline con
 
 ## Project Pipeline
 
-The workflow integrates three main stages:
+The workflow integrates four main stages:
 
 ### 1. Parametric Mesh Generation (GMSH)
 
