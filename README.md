@@ -170,13 +170,6 @@ The global stiffness matrix is the assembled collection of all element stiffness
 
 ---
 
-## Next Steps
-
-- [ ] Validation against FEM ground truth (MSE/R² metrics).
-- [ ] Jupyter notebook example for reproducibility.
-
----
-
 ## Installation / Dependencies
 
 - Tested with **Python 3.10+**.
@@ -184,7 +177,7 @@ The global stiffness matrix is the assembled collection of all element stiffness
 ```bash
 pip install -r requirements.txt
 Note: FEM runs require CalculiX (ccx) installed separately (set the path in config.yaml)
-
+```
 ---
 
 ## Author
