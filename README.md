@@ -131,7 +131,7 @@ The `calculate_youngs_modulus()` function parses the mesh and stress files, comp
 
 **Target Output:**
 
-$E_{\text{eff}}$
+$$E_{\text{eff}}$$
 
 A regression FNN learns the mapping from geometry to effective Young's modulus.
 
