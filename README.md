@@ -43,25 +43,27 @@ Linux / macOS
 cp config.example.yaml config.yaml
 nano config.yaml
 ```
-### 4)Run FEM simulations (dataset generation)
+### 4) Run FEM simulations (dataset generation)
+```bash
 python Pipeline/simulation.py config.yaml
-
+```
 Expected outputs:
 
-data/ml_data.csv (aggregated dataset)
+- data/ml_data.csv (aggregated dataset)
 
-data/param_histograms.png
+- data/param_histograms.png
 
-logs/main.log + per-simulation logs
+- logs/main.log + per-simulation logs
 
 ### 5) Train the neural network
+```bash
 python Pipeline/FNN.py
-
+```
 Expected outputs:
 
-plots/*.png (training curves, scatter plot, etc.)
+- plots/*.png (training curves, scatter plot, etc.)
 
-optionally logs/train_*.log
+- logs/train_*.log
 
 ---
 
