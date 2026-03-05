@@ -16,15 +16,15 @@ cd Mesh---FEM---NN
 
 ### 2) Create a virtual environment + install Python dependencies
 Windows (PowerShell)
-```bash
+```PowerShell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
-```bash
-Linux / macOS
 
+Linux / macOS
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -34,13 +34,12 @@ pip install -r requirements.txt
 Copy the example config and edit the CalculiX path:
 
 Windows (PowerShell)
-```bash
+```PowerShell
 Copy-Item config.example.yaml config.yaml
 notepad config.yaml
 ```
-```bash
 Linux / macOS
-
+```bash
 cp config.example.yaml config.yaml
 nano config.yaml
 ```
