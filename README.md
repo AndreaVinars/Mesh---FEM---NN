@@ -36,12 +36,29 @@ Metrics obtained on a dataset of **5000 FEM simulations** using the baseline con
 
 ---
 
+## Repository structure
+
+- `mesh_parametric_ellipses.py` — 
+- `mesh_fixed_ellipses` — manual input of dimensions, FEA + post-processing
+- `Pipeline/`
+  - `FNN.py` — neural network training + evaluation (plots + metrics)
+  - `simulation.py` — runs FEM analyses for each generated geometry (CalculiX)
+  - `data_processing.py` — post-processing + dataset creation (CSV)
+- `docs/figures/` — figures used in the README
+- `config.example.yaml` — example configuration
+- `requirements.txt` — Python dependencies
+
+---
+
 ## Project Status
 
-- [x] **Phase 1:** Parametric mesh generation with GMSH (Completed)
-- [x] **Phase 2:** FEM simulation & Homogenization with CalculiX (Completed)
-- [ ] **Phase 3:** Neural Network training (In progress)
-- [ ] **Phase 4:** Results evaluation
+- [x] **Phase 1:** Parametric geometry & mesh generation (Gmsh)
+- [x] **Phase 2:** FEM simulation + homogenization (CalculiX)
+- [x] **Phase 3:** Dataset generation (CSV) + baseline FNN training & evaluation
+- [ ] **Phase 4 (in progress):** Inference interface + final polish
+  - [ ] Add a user-facing prediction function (input: geometry parameters → output: predicted \(E_{\text{eff}}\))
+  - [ ] Improve FNN accuracy (hyperparameter tuning / feature engineering / training strategy)
+  - [ ] Add debug utilities for rejected geometries (mesh quality / solver failures / filtering reasons)
 
 ---
 
@@ -104,7 +121,13 @@ The `calculate_youngs_modulus()` function parses the mesh and stress files, comp
 - Homogenization: Effective modulus links average stress to applied (nominal) strain
 - Uniform boundary displacement (prescribed elongation)
 
-### 4. Neural Network Training
+### 4. Neural Network (training vs inference)
+
+- **Training input (17 features):** the network is trained on an extended feature set that includes
+  derived quantities (e.g., `sin/cos` of angles, relative distances, areas).
+- **Planned inference input (10 parameters):** the user will provide only the basic ellipse geometry:
+  `x1, y1, rx1, ry1, angle1, x2, y2, rx2, ry2, angle2`.
+  The missing 7 features will be computed internally before running the prediction.
 
 **Input Feature Vector** (10-dimensional):
 
@@ -114,7 +137,7 @@ $$\mathbf{x} = [x_1, y_1, r_{x1}, r_{y1}, \theta_1, x_2, y_2, r_{x2}, r_{y2}, \t
 
 $$E_{\text{eff}}$$
 
-A regression FNN learns the mapping from geometry to effective Young's modulus. The model is trained on a dataset of approximately 5000 FEM simulations.
+A regression FNN learns the mapping from geometry to effective Young's modulus.
 
 ---
 
@@ -149,18 +172,18 @@ The global stiffness matrix is the assembled collection of all element stiffness
 
 ## Next Steps
 
-- [ ] Train NN
 - [ ] Validation against FEM ground truth (MSE/R² metrics).
 - [ ] Jupyter notebook example for reproducibility.
 
 ---
 
-## Requirements
-- **Python 3.x**
-- **Gmsh 4.15.0** (Mesh generation)
-- **CalculiX 2.2x (ccx)** (FEM Solver)
-- **NumPy & Pandas** (Data handling)
-- **PyTorch** (Planned for ML)
+## Installation / Dependencies
+
+- Tested with **Python 3.10+**.
+- Install Python packages:
+```bash
+pip install -r requirements.txt
+Note: FEM runs require CalculiX (ccx) installed separately (set the path in config.yaml)
 
 ---
 
