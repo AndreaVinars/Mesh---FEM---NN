@@ -10,8 +10,8 @@ The goal is to train a Feedforward Neural Network (FNN) to predict the **effecti
 
 Metrics obtained on a dataset of **5000 FEM simulations** using the baseline configuration in `config.example.yaml`.
 
-- **RMSE:** 3.792740  
-- **MAE:**  2.728667  
+- **RMSE:** 3.792740 GPa
+- **MAE:**  2.728667 GPa
 
 ### Prediction quality (test set)
 <img src="docs/figures/SILU.png" width="850">
@@ -56,7 +56,7 @@ Metrics obtained on a dataset of **5000 FEM simulations** using the baseline con
 - [x] **Phase 2:** FEM simulation + homogenization (CalculiX)
 - [x] **Phase 3:** Dataset generation (CSV) + baseline FNN training & evaluation
 - [ ] **Phase 4 (in progress):** Inference interface + final polish
-  - [ ] Add a user-facing prediction function (input: geometry parameters → output: predicted $$E_{\text{eff}}$$)
+  - [ ] Add a user-facing prediction function (input: geometry parameters → output: predicted $E_{\text{eff}}$)
   - [ ] Improve FNN accuracy (hyperparameter tuning / feature engineering / training strategy)
   - [ ] Add debug utilities for rejected geometries (mesh quality / solver failures / filtering reasons)
 
@@ -131,7 +131,7 @@ The `calculate_youngs_modulus()` function parses the mesh and stress files, comp
 
 **Target Output:**
 
-$$E_{\text{eff}}$$
+$E_{\text{eff}}$
 
 A regression FNN learns the mapping from geometry to effective Young's modulus.
 
