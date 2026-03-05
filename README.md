@@ -133,7 +133,7 @@ Where:
 $$\bar{\varepsilon}_{xx} = \frac{\text{elongation}}{\text{plate width}}$$
 
 **Implementation:**
-The `calculate_youngs_modulus()` function parses the mesh and stress files, computes element areas using the cross-product formula, performs area-weighted averaging of Sxx stresses, and divides by the applied strain to obtain $E_{eff}$.
+The `calculate_youngs_modulus()` function parses the mesh and stress files, computes element areas using the cross-product formula, performs area-weighted averaging of Sxx stresses, and divides by the applied strain to obtain $E_{\text{eff}}$.
 
 **Assumptions:**
 - Linear elastic regime (small strains)
