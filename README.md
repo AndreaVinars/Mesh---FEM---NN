@@ -129,10 +129,6 @@ The `calculate_youngs_modulus()` function parses the mesh and stress files, comp
   `x1, y1, rx1, ry1, angle1, x2, y2, rx2, ry2, angle2`.
   The missing 7 features will be computed internally before running the prediction.
 
-**Input Feature Vector** (10-dimensional):
-
-$$\mathbf{x} = [x_1, y_1, r_{x1}, r_{y1}, \theta_1, x_2, y_2, r_{x2}, r_{y2}, \theta_2]$$
-
 **Target Output:**
 
 $$E_{\text{eff}}$$
@@ -143,10 +139,10 @@ A regression FNN learns the mapping from geometry to effective Young's modulus.
 
 ## Dataset & Training
 
-- **Target dataset size:** ~5000 samples
-- **Input:** 10-dimensional geometric feature vector
+- **Baseline dataset size:** ~5000 samples
+- **Input (training):** 17-dimensional geometric feature vector
 - **Output:** Single scalar $E_{\text{eff}}$
-- **Train/Test Split:** (to be defined)
+- **Train/Test Split:** 70/15/15
 - **Baseline:** Comparison against direct FEM evaluation
 
 
