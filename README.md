@@ -54,7 +54,7 @@ data/param_histograms.png
 
 logs/main.log + per-simulation logs
 
-5) Train the neural network
+### 5) Train the neural network
 python Pipeline/FNN.py
 
 Expected outputs:
