@@ -8,21 +8,61 @@ The goal is to train a Feedforward Neural Network (FNN) to predict the **effecti
 
 ## Quickstart
 
-### 1) Install dependencies
+### 1) Clone the repository
 ```bash
+git clone https://github.com/AndreaVinars/Mesh---FEM---NN.git
+cd Mesh---FEM---NN
+```
+
+### 2) Create a virtual environment + install Python dependencies
+Windows (PowerShell)
+```PowerShell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
-### 2) Working directories
-- Setup working directory in your config
-- Install CalculiX (ccx) separately and set the executable path in your config.
+```bash
+Linux / macOS
 
-### 3) Run FEM simulations
-- Run Pipeline/simulation.py code
-- This script automatically creates/updates the dataset CSV
--  output CSV: ./data/ml_data.csv
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+### 3) Create your config file
+Copy the example config and edit the CalculiX path:
 
-### 4) Train the neural network
-- Run Pipeline/FNN
+Windows (PowerShell)
+```PowerShell
+Copy-Item config.example.yaml config.yaml
+notepad config.yaml
+```
+```bash
+Linux / macOS
+
+cp config.example.yaml config.yaml
+nano config.yaml
+```
+### 4)Run FEM simulations (dataset generation)
+python Pipeline/simulation.py config.yaml
+
+Expected outputs:
+
+data/ml_data.csv (aggregated dataset)
+
+data/param_histograms.png
+
+logs/main.log + per-simulation logs
+
+5) Train the neural network
+python Pipeline/FNN.py
+
+Expected outputs:
+
+plots/*.png (training curves, scatter plot, etc.)
+
+optionally logs/train_*.log
 
 ---
 
@@ -59,7 +99,7 @@ Metrics obtained on a dataset of **5000 FEM simulations** using the baseline con
 ## Repository structure
 
 - `parametric_ellipses.py` — basic parametric FEA, without post-processing
-- `fixed_ellipses` — manual input of dimensions, FEA + post-processing
+- `fixed_ellipses.py` — manual input of dimensions, FEA + post-processing
 - `Pipeline/`
   - `FNN.py` — neural network training + evaluation (plots + metrics)
   - `simulation.py` — runs FEM analyses for each generated geometry (CalculiX)
