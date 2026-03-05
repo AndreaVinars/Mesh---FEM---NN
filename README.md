@@ -38,8 +38,8 @@ Metrics obtained on a dataset of **5000 FEM simulations** using the baseline con
 
 ## Repository structure
 
-- `mesh_parametric_ellipses.py` — 
-- `mesh_fixed_ellipses` — manual input of dimensions, FEA + post-processing
+- `parametric_ellipses.py` — basic parametric FEA, without post-processing
+- `fixed_ellipses` — manual input of dimensions, FEA + post-processing
 - `Pipeline/`
   - `FNN.py` — neural network training + evaluation (plots + metrics)
   - `simulation.py` — runs FEM analyses for each generated geometry (CalculiX)
