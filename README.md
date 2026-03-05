@@ -6,6 +6,36 @@ The goal is to train a Feedforward Neural Network (FNN) to predict the **effecti
 
 ---
 
+## Results (baseline)
+
+Metrics obtained on a dataset of **5000 FEM simulations** using the baseline configuration in `config.example.yaml`.
+
+- **RMSE:** 3.792740  
+- **MAE:**  2.728667  
+
+### Prediction quality (test set)
+<img src="docs/figures/SILU.png" width="850">
+
+### Training curves
+<img src="docs/figures/LOSS.png" width="850">
+
+### Target distribution
+<img src="docs/figures/TARGET_HIST.png" width="850">
+
+### Input parameter distributions
+<img src="docs/figures/param_histograms.png" width="850">
+
+### Mesh example (Gmsh)
+<img src="docs/figures/GMSH.png" width="850">
+
+### FEM view (CalculiX/CGX)
+<img src="docs/figures/CGX.png" width="850">
+
+### Dataset snapshot
+<img src="docs/figures/Excel_data.png" width="850">
+
+---
+
 ## Project Status
 
 - [x] **Phase 1:** Parametric mesh generation with GMSH (Completed)
