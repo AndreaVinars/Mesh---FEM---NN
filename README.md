@@ -89,7 +89,7 @@ Metrics obtained on a dataset of **5000 FEM simulations** using the baseline con
 ### Mesh example (Gmsh)
 <img src="docs/figures/GMSH.png" width="850">
 
-### FEM view (CalculiX/CGX)
+### FEM view (CalculiX/CGX), **Note:** In this CGX view, the **+X direction points upward**
 <img src="docs/figures/CGX.png" width="850">
 
 ### Dataset snapshot
