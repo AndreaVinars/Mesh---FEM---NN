@@ -100,11 +100,11 @@ The same accepted mesh is reused for all three load cases:
 CalculiX writes stresses and integration volumes to the `.dat` file. The
 homogenized stress is evaluated by volume-weighted averaging:
 
-$$
+```math
 \bar{\boldsymbol{\sigma}}
 =
-\frac{\sum_i \boldsymbol{\sigma}_i V_i}{\sum_i V_i}.
-$$
+\frac{\sum_i \boldsymbol{\sigma}_i V_i}{\sum_i V_i}
+```
 
 ### Effective-Property Calculation
 
@@ -384,6 +384,23 @@ The surrogate should only be used within the geometric parameter range covered
 by its training dataset.
 
 ## Representative Results
+
+### Fixed-Geometry FEM Validation
+
+A representative geometry from the thesis validation was evaluated with both
+the complete FEM workflow and the trained surrogate model:
+
+| Target | FEM | Surrogate | Signed error | Relative error |
+| --- | ---: | ---: | ---: | ---: |
+| $E_x$ [GPa] | 183.720300 | 181.939178 | -1.781121 | 0.969% |
+| $E_y$ [GPa] | 145.562182 | 145.807434 | 0.245252 | 0.168% |
+| $G_{xy}$ [GPa] | 62.536277 | 62.713993 | 0.177716 | 0.284% |
+| $\nu_{xy}$ [-] | 0.289604 | 0.288321 | -0.001283 | 0.443% |
+
+All four predictions are within 1% of the corresponding FEM values; the
+largest relative error is 0.969% for $E_x$.
+
+### Held-Out Test-Set Metrics
 
 The following held-out test metrics were obtained for the currently published
 model using a dataset of 5,000 accepted geometries:
