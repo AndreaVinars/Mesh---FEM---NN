@@ -1,78 +1,392 @@
-# Predicting Effective Young's Modulus with Neural Networks from Parametric FEA
+# Effective Elastic Properties of Plates with Elliptical Holes
 
-This project automates the prediction of the **effective elastic properties** of a perforated 2D plate using a hybrid Finite Element Analysis (FEA) and Machine Learning approach.
+This project combines finite element homogenization and a feed-forward neural
+network (FNN) to estimate the in-plane effective elastic properties of a 2D
+periodic plate containing two elliptical holes.
 
-The goal is to train a Feedforward Neural Network (FNN) to predict the **effective Young's modulus** $E_{\text{eff}}$ of a plate with two random elliptical holes directly from geometric parameters, bypassing computationally expensive FEM simulations for new geometries.
+For each geometry, the workflow creates a periodic Gmsh mesh, runs three
+CalculiX load cases, evaluates homogenized stresses, and extracts four effective
+engineering constants:
 
----
+- Young's modulus in the x-direction, $E_x$
+- Young's modulus in the y-direction, $E_y$
+- In-plane shear modulus, $G_{xy}$
+- Poisson's ratio, $\nu_{xy}$
 
-## Quickstart
+The resulting dataset is used to train an FNN surrogate that predicts all four
+properties directly from the geometry of the two holes.
 
-### 1) Clone the repository
+## Contents
+
+- [Workflow](#workflow)
+- [Mathematical Foundation](#mathematical-foundation)
+- [Repository Structure](#repository-structure)
+- [Installation](#installation)
+- [Running FEM Simulations](#running-fem-simulations)
+- [Fixed-Geometry Validation](#fixed-geometry-validation)
+- [Neural-Network Surrogate](#neural-network-surrogate)
+- [Representative Results](#representative-results)
+- [Assumptions and Limitations](#assumptions-and-limitations)
+
+## Key Features
+
+- Latin Hypercube Sampling (LHS) of ten independent ellipse parameters
+- Parametric geometry and adaptive 2D meshing with Gmsh
+- Periodic boundary conditions on opposite plate edges
+- Automatic mesh-quality checks and fallback meshing strategies
+- Three CalculiX analyses per geometry: `EX`, `EY`, and `XY`
+- Two methods for extracting effective elastic properties
+- Parallel simulation execution with `joblib`
+- Automatic dataset, diagnostic CSV, histogram, and log generation
+- A shared 26-feature FNN pipeline for training and inference
+- Prediction of $E_x$, $E_y$, $G_{xy}$, and $\nu_{xy}$
+
+## Workflow
+
+```mermaid
+flowchart LR
+    A["LHS geometry sampling"] --> B["Gmsh geometry and periodic mesh"]
+    B --> C["Mesh-quality validation"]
+    C --> D["CalculiX EX, EY, and XY analyses"]
+    D --> E["Stress and displacement post-processing"]
+    E --> F["Effective elastic properties"]
+    F --> G["Machine-learning dataset"]
+    G --> H["FNN training and evaluation"]
+    H --> I["Fast surrogate prediction"]
+```
+
+## Mathematical Foundation
+
+### Mechanical Model
+
+The representative volume element is a rectangular, plane-stress plate with
+two elliptical holes. Each hole is described by five parameters:
+
+$$
+(x, y, r_x, r_y, \theta)
+$$
+
+where $(x,y)$ is the center, $r_x$ and $r_y$ are the semi-axes, and $\theta$ is
+the rotation angle. The full geometry therefore contains ten sampled
+parameters.
+
+The matrix material is isotropic and linearly elastic. Small strains and a
+constant plate thickness are assumed.
+
+### Periodic Boundary Conditions
+
+Opposite boundary nodes are paired in Gmsh before mesh generation. After the
+final mesh has been accepted, CalculiX `*EQUATION` constraints are assembled
+from the actual boundary-node pairs and corner nodes.
+
+In general, the periodic displacement difference follows
+
+$$
+\mathbf{u}(\mathbf{x}^{+}) - \mathbf{u}(\mathbf{x}^{-})
+= \bar{\boldsymbol{\varepsilon}}
+\left(\mathbf{x}^{+} - \mathbf{x}^{-}\right).
+$$
+
+The same accepted mesh is reused for all three load cases:
+
+| Load case | Prescribed macroscopic deformation | Primary response |
+| --- | --- | --- |
+| `EX` | $\bar{\varepsilon}_{xx}=\varepsilon_0$ | $\bar{\sigma}_{xx}$ |
+| `EY` | $\bar{\varepsilon}_{yy}=\varepsilon_0$ | $\bar{\sigma}_{yy}$ |
+| `XY` | $\bar{\gamma}_{xy}=\gamma_0$ | $\bar{\tau}_{xy}$ |
+
+### Homogenized Stress
+
+CalculiX writes stresses and integration volumes to the `.dat` file. The
+homogenized stress is evaluated by volume-weighted averaging:
+
+$$
+\bar{\boldsymbol{\sigma}}
+=
+\frac{\sum_i \boldsymbol{\sigma}_i V_i}{\sum_i V_i}.
+$$
+
+### Effective-Property Calculation
+
+The simulation supports two calculation modes through
+`simulation.calculation_mode`.
+
+#### `from_c`
+
+The three homogenized stress vectors form the columns of the in-plane stiffness
+matrix:
+
+$$
+\mathbf{C}=
+\begin{bmatrix}
+\bar{\boldsymbol{\sigma}}^{EX}/\varepsilon_0 &
+\bar{\boldsymbol{\sigma}}^{EY}/\varepsilon_0 &
+\bar{\boldsymbol{\sigma}}^{XY}/\gamma_0
+\end{bmatrix}.
+$$
+
+With $\mathbf{S}=\mathbf{C}^{-1}$, the engineering constants are
+
+$$
+E_x=\frac{1}{S_{11}}, \qquad
+E_y=\frac{1}{S_{22}}, \qquad
+G_{xy}=\frac{1}{S_{33}}, \qquad
+\nu_{xy}=-\frac{S_{21}}{S_{11}}.
+$$
+
+#### `direct_contraction`
+
+The primary moduli are calculated directly from the corresponding load cases:
+
+$$
+E_x=\frac{\bar{\sigma}_{xx}^{EX}}{\varepsilon_0}, \qquad
+E_y=\frac{\bar{\sigma}_{yy}^{EY}}{\varepsilon_0}, \qquad
+G_{xy}=\frac{\bar{\tau}_{xy}^{XY}}{\gamma_0}.
+$$
+
+The transverse displacement measured during `EX` loading is used to determine
+$\nu_{xy}$.
+
+## Repository Structure
+
+```text
+.
+|-- Main/
+|   |-- Fixed_elipses_corners_Bez_Kontrakcije.py  Fixed-geometry validation
+|   `-- predict_fixed.py                         Surrogate inference for validation
+|-- Pipeline/
+|   |-- Mesh-FEM/
+|   |   |-- simulation.py                 Main parallel FEM pipeline
+|   |   |-- simulation_context.py         Configuration and load-case paths
+|   |   |-- data_processing.py            CalculiX parsing and homogenization
+|   |   |-- equation_block_corners.py     Periodic-equation implementation
+|   |   `-- Helper_functions.py           Sampling, logging, and mesh diagnostics
+|   `-- FNN/
+|       |-- FNN.py                        Four-output surrogate training
+|       |-- FNN_shared.py                 Shared features and FNN architecture
+|       `-- predict.py                    General inference helpers
+|-- config_example.yaml           Example simulation configuration
+|-- requirements.txt              Python dependencies
+|-- data/                         Datasets and parameter histograms
+|-- models/                       Saved model and scaler artifacts
+|-- Results/
+|   |-- Mesh-FEM/                 Mesh and FEM result images
+|   `-- FNN/                      Training and evaluation images
+```
+
+The `input_files/`, `output_files/`, and `logs/` directories contain generated
+simulation artifacts and can become large during dataset generation.
+
+All commands below assume that the current working directory is the repository
+root.
+
+## Requirements
+
+- Python 3.10 or newer
+- CalculiX executable (`ccx` or `ccx_static`)
+- Python packages listed in `requirements.txt`
+
+The main Python dependencies are Gmsh, NumPy, SciPy, pandas, PyTorch,
+scikit-learn, Matplotlib, Joblib, PyYAML, and tqdm.
+
+## Installation
+
+### 1. Clone the repository
+
 ```bash
 git clone https://github.com/AndreaVinars/Mesh---FEM---NN.git
 cd Mesh---FEM---NN
 ```
 
-### 2) Create a virtual environment + install Python dependencies
-Windows (PowerShell)
-```PowerShell
+### 2. Create a virtual environment
+
+Windows PowerShell:
+
+```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
-Linux / macOS
+Linux or macOS:
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
-### 3) Create your config file
-Copy the example config and edit the CalculiX path:
 
-Windows (PowerShell)
-```PowerShell
-Copy-Item config.example.yaml config.yaml
-notepad config.yaml
+### 3. Configure CalculiX and the simulation
+
+Create a local configuration file:
+
+Windows PowerShell:
+
+```powershell
+Copy-Item config_example.yaml config.yaml
 ```
-Linux / macOS
+
+Linux or macOS:
+
 ```bash
-cp config.example.yaml config.yaml
-nano config.yaml
+cp config_example.yaml config.yaml
 ```
-### 4) Run FEM simulations (dataset generation)
+
+Edit `config.yaml` and provide the path to the CalculiX executable. All
+available settings and their units are documented in `config_example.yaml`.
+
+The `CALCULIX_CMD` environment variable can override the executable configured
+in YAML:
+
+```powershell
+$env:CALCULIX_CMD = "C:\path\to\ccx_static.exe"
+```
+
+## Running FEM Simulations
+
+Start with a small number of geometries to verify the installation:
+
 ```bash
-python Pipeline/simulation.py config.yaml
+python Pipeline/Mesh-FEM/simulation.py config.yaml
 ```
-Expected outputs:
 
-- data/ml_data.csv (aggregated dataset)
+Each geometry is meshed once and analyzed in the `EX`, `EY`, and `XY` load
+cases. With `num_simulations: 20`, this produces up to 60 CalculiX analyses.
 
-- data/param_histograms.png
+The main generated outputs are:
 
-- logs/main.log + per-simulation logs
+```text
+data/<calculation_mode>/ml_data_<calculation_mode>_seed_<seed>.csv
+data/<calculation_mode>/param_histograms_<calculation_mode>.png
+data/rejected_simulations.csv
+input_files/sim_XXXX_<load_case>.inp
+output_files/sim_XXXX_<load_case>.*
+logs/main.log
+logs/sim_XXXX.log
+```
 
-### 5) Train the neural network
+The dataset uses a semicolon separator and a decimal comma.
+
+## Fixed-Geometry Validation
+
+The main example runs the three FEM load cases for one fixed geometry and
+compares the homogenized properties with the trained surrogate:
+
 ```bash
-python Pipeline/FNN.py
+python Main/Fixed_elipses_corners_Bez_Kontrakcije.py
 ```
-Expected outputs:
 
-- plots/*.png (training curves, scatter plot, etc.)
+By default, the script loads `best_silu.pt`, `scaler_X.pkl`, and
+`scaler_y.pkl` from the root `models/` directory. Set `CALCULIX_CMD` or
+`FNN_MODEL_DIR` to override the corresponding executable or model location.
 
-- logs/train_*.log
+## Neural-Network Surrogate
 
----
+The user supplies ten geometric values for two ellipses. These values are
+expanded into 26 model features:
 
-## Results
+- 18 base features, including trigonometric angle encoding, relative position,
+  distance, areas, and relative orientation
+- 8 derived features describing area, aspect-ratio, and semi-axis relationships
 
-### FNN performance
+The FNN predicts the following targets simultaneously:
 
-The current four-output model was trained on a dataset of **5,000 accepted FEM
-simulations**. The held-out test metrics are:
+```text
+E_x [GPa]
+E_y [GPa]
+G_xy [GPa]
+NU_xy [-]
+```
+
+The current architecture contains five hidden layers with 32 neurons and SiLU
+activations. Dropout is applied after the first two layers. Training uses a
+70/15/15 train-validation-test split, `StandardScaler`, Smooth L1 loss, AdamW,
+learning-rate reduction on validation plateaus, and early stopping.
+
+### Training
+
+Set the working directory and dataset explicitly before starting training.
+For a `direct_contraction` dataset generated with seed 30:
+
+Windows PowerShell:
+
+```powershell
+$env:FNN_WORK_DIR = (Get-Location).Path
+$env:FNN_DATASET_PATH = (Resolve-Path ".\data\direct_contraction\ml_data_direct_contraction_seed_30.csv").Path
+python Pipeline/FNN/FNN.py
+```
+
+Linux or macOS:
+
+```bash
+export FNN_WORK_DIR="$PWD"
+export FNN_DATASET_PATH="$PWD/data/direct_contraction/ml_data_direct_contraction_seed_30.csv"
+python Pipeline/FNN/FNN.py
+```
+
+Training creates:
+
+```text
+models/best_silu.pt
+models/scaler_X.pkl
+models/scaler_y.pkl
+plots/SILU_<target>.png
+plots/<target>_distribution.png
+plots/LOSS.png
+logs/train_<timestamp>.log
+```
+
+### Inference
+
+The reusable inference functions load the model and both scalers from the root
+`models/` directory. Point `FNN_MODEL_DIR` to a different artifact directory
+when needed:
+
+```powershell
+$env:FNN_MODEL_DIR = (Resolve-Path ".\models").Path
+```
+
+Example prediction:
+
+```python
+from Main.predict_fixed import load_surrogate_model, predict_custom
+
+model, scaler_X, scaler_y, device = load_surrogate_model()
+
+properties = predict_custom(
+    model,
+    scaler_X,
+    scaler_y,
+    x1=4.11,
+    y1=3.77,
+    rx1=1.83,
+    ry1=1.16,
+    angle1_deg=48.9,
+    x2=8.03,
+    y2=7.56,
+    rx2=1.64,
+    ry2=0.87,
+    angle2_deg=118.3,
+    device=device,
+)
+
+for name, value in properties.items():
+    print(f"{name}: {value:.6f}")
+```
+
+Run this example from the repository root. The complete FEM-versus-FNN
+validation workflow is available in
+`Main/Fixed_elipses_corners_Bez_Kontrakcije.py`.
+
+The surrogate should only be used within the geometric parameter range covered
+by its training dataset.
+
+## Representative Results
+
+The following held-out test metrics were obtained for the currently published
+model using a dataset of 5,000 accepted geometries:
 
 | Target | RMSE | MAE |
 | --- | ---: | ---: |
@@ -81,200 +395,69 @@ simulations**. The held-out test metrics are:
 | $G_{xy}$ [GPa] | 1.789192 | 1.086722 |
 | $\nu_{xy}$ [-] | 0.011676 | 0.007045 |
 
-#### Training history
+Exact results depend on the sampled geometries, accepted meshes, dataset size,
+random seed, and training configuration.
 
-<img src="Results/FNN/LOSS.png" width="850">
+### Periodic Mesh
 
-#### True vs. predicted properties
+![Periodic Gmsh mesh](Results/Mesh-FEM/periodic_mesh.png)
 
-<img src="Results/FNN/SILU_E_x.png" width="420">
-<img src="Results/FNN/SILU_E_y.png" width="420">
-<img src="Results/FNN/SILU_G_xy.png" width="420">
-<img src="Results/FNN/SILU_NU_xy.png" width="420">
+### FEM Load Cases
 
-#### Target distributions
+The contour plots show the CalculiX response for the three independent
+macroscopic deformation states used during homogenization.
 
-<img src="Results/FNN/E_x_distribution.png" width="420">
-<img src="Results/FNN/E_y_distribution.png" width="420">
-<img src="Results/FNN/G_xy_distribution.png" width="420">
-<img src="Results/FNN/NU_xy_distribution.png" width="420">
+| Tension in $x$ (`EX`) | Tension in $y$ (`EY`) | Shear (`XY`) |
+| --- | --- | --- |
+| ![FEM result for tensile loading in x](Results/Mesh-FEM/Tensile_X.png) | ![FEM result for tensile loading in y](Results/Mesh-FEM/Tensile_Y.png) | ![FEM result for xy shear loading](Results/Mesh-FEM/Shear_XY.png) |
 
-### Mesh and FEM results
+### FNN Training History
 
-#### Periodic mesh
+![FNN training and validation loss](Results/FNN/LOSS.png)
 
-<img src="Results/Mesh-FEM/periodic_mesh.png" width="850">
+### True vs. Predicted Properties
 
-#### Homogenization load cases
+| $E_x$ | $E_y$ |
+| --- | --- |
+| ![True versus predicted E_x](Results/FNN/SILU_E_x.png) | ![True versus predicted E_y](Results/FNN/SILU_E_y.png) |
 
-<img src="Results/Mesh-FEM/Tensile_X.png" width="420">
-<img src="Results/Mesh-FEM/Tensile_Y.png" width="420">
-<img src="Results/Mesh-FEM/Shear_XY.png" width="420">
+| $G_{xy}$ | $\nu_{xy}$ |
+| --- | --- |
+| ![True versus predicted G_xy](Results/FNN/SILU_G_xy.png) | ![True versus predicted NU_xy](Results/FNN/SILU_NU_xy.png) |
 
----
+### Target Distributions
 
-## Repository structure
+| $E_x$ | $E_y$ |
+| --- | --- |
+| ![Distribution of E_x](Results/FNN/E_x_distribution.png) | ![Distribution of E_y](Results/FNN/E_y_distribution.png) |
 
-- `parametric_ellipses.py` — basic parametric FEA, without post-processing
-- `fixed_ellipses.py` — manual input of dimensions, FEA + post-processing
-- `Pipeline/`
-  - `FNN.py` — neural network training + evaluation (plots + metrics)
-  - `simulation.py` — runs FEM analyses for each generated geometry (CalculiX)
-  - `data_processing.py` — post-processing + dataset creation (CSV)
-- `Results/` — result images displayed in this README
-  - `FNN/` — neural-network training and evaluation images
-  - `Mesh-FEM/` — mesh and FEM load-case images
-- `config.example.yaml` — example configuration
-- `requirements.txt` — Python dependencies
+| $G_{xy}$ | $\nu_{xy}$ |
+| --- | --- |
+| ![Distribution of G_xy](Results/FNN/G_xy_distribution.png) | ![Distribution of NU_xy](Results/FNN/NU_xy_distribution.png) |
 
----
+## Assumptions and Limitations
 
-## Project Status
+- The matrix material is isotropic and linearly elastic.
+- The analysis uses small strains and plane-stress conditions.
+- The current geometry contains exactly two elliptical holes.
+- Invalid geometries, poor meshes, solver failures, and failed post-processing
+  cases are excluded from the training dataset and recorded separately.
+- Prediction accuracy is expected to deteriorate outside the training range.
+- CalculiX is an external dependency and must be installed separately.
 
-- [x] **Phase 1:** Parametric geometry & mesh generation (Gmsh)
-- [x] **Phase 2:** FEM simulation + homogenization (CalculiX)
-- [x] **Phase 3:** Dataset generation (CSV) + baseline FNN training & evaluation
-- [ ] **Phase 4 (in progress):** Inference interface + final polish
-  - [ ] Add a user-facing prediction function (input: geometry parameters → output: predicted $E_{\text{eff}}$)
-  - [ ] Improve FNN accuracy (hyperparameter tuning / feature engineering / training strategy)
-  - [ ] Add debug utilities for rejected geometries (mesh quality / solver failures / filtering reasons)
+## Reproducibility
 
----
-
-## Project Pipeline
-
-The workflow integrates four main stages:
-
-### 1. Parametric Mesh Generation (GMSH)
-
-Automated generation of 2D rectangular plates with two elliptical holes.
-
-**Geometric Parameters (per hole):**
-- Position: $x, y$ (center coordinates)
-- Semi-axes: $r_x, r_y$ (semi-major and semi-minor axis lengths)
-- Orientation: $\theta$ (rotation angle)
-
-Each configuration is randomized and stored with an associated mesh file (.msh).
-
-### 2. FEM Simulation (CalculiX)
-
-For each geometry, CalculiX solves the linear elastic problem:
-
-**Problem Setup:**
-- Material: Isotropic, constant $E_{\text{mat}}$, constant Poisson's ratio $\nu$
-- Boundary Condition: Prescribed displacement $u$ on plate edges
-- Solver: Assembles global stiffness matrix $\mathbf{K}$ from element matrices and solves the linear system $\mathbf{K}\mathbf{u} = \mathbf{F}$ for nodal displacements $\mathbf{u}$.
-
-From the displacement field, stresses and strains are evaluated at Gauss integration points across all elements.
-
-### 3. Homogenization & Data Extraction
-
-**Volume Averaging:**
-- Average stress: $\bar{\boldsymbol{\sigma}} = \frac{1}{V}\int_V \boldsymbol{\sigma} \, dV$
-- Average strain: $\bar{\boldsymbol{\varepsilon}} = \frac{1}{V}\int_V \boldsymbol{\varepsilon} \, dV$
-
-**Effective Young's Modulus Calculation:**
-
-The effective modulus is obtained from the ratio of homogenized stress to applied strain:
-
-$$E_{\text{eff}} = \frac{\bar{\sigma}_{xx}}{\bar{\varepsilon}_{xx}}$$
-
-**Homogenized Stress** (area-weighted average):
-
-$$\bar{\sigma}_{xx} = \frac{\sum_{i} \sigma_{xx,i} \cdot A_i}{\sum_{i} A_i}$$
-
-Where:
-- $\sigma_{xx,i}$ = Axial stress of element $i$ (from CalculiX `.dat` file)
-- $A_i$ = Area of element $i$ (computed from nodal coordinates in `.inp` file)
-
-**Applied Strain** (prescribed boundary condition):
-
-$$\bar{\varepsilon}_{xx} = \frac{\text{elongation}}{\text{plate width}}$$
-
-**Implementation:**
-The `calculate_youngs_modulus()` function parses the mesh and stress files, computes element areas using the cross-product formula, performs area-weighted averaging of Sxx stresses, and divides by the applied strain to obtain $E_{\text{eff}}$.
-
-**Assumptions:**
-- Linear elastic regime (small strains)
-- Plane stress conditions  
-- Homogenization: Effective modulus links average stress to applied (nominal) strain
-- Uniform boundary displacement (prescribed elongation)
-
-### 4. Neural Network (training vs inference)
-
-- **Training input (17 features):** the network is trained on an extended feature set that includes
-  derived quantities (e.g., `sin/cos` of angles, relative distances, areas).
-- **Planned inference input (10 parameters):** the user will provide only the basic ellipse geometry:
-  `x1, y1, rx1, ry1, angle1, x2, y2, rx2, ry2, angle2`.
-  The missing 7 features will be computed internally before running the prediction.
-
-
-**Target Output:**
-
-$$E_{\text{eff}}$$
-
-A regression FNN learns the mapping from geometry to effective Young's modulus.
-
----
-
-## Dataset & Training
-
-### Dataset
-- The dataset is stored as a CSV file (not included in the repository).
-- Expected location (default in `Pipeline/FNN.py`): `./data/ml_data.csv`
-- Target: $E_{\text{eff}}$ (values are scaled to GPa in the training script via `/1000`).
-
-### Model inputs
-- **Training input (17 features):** an extended feature vector including derived quantities
-  (e.g., `sin/cos` of angles, relative distances, and areas).
-- **Planned inference input (10 parameters):** the user will provide only the basic ellipse geometry:
-  `x1, y1, rx1, ry1, angle1, x2, y2, rx2, ry2, angle2`.
-  The remaining 7 features will be computed internally before prediction.
-
-### Training setup (baseline)
-- Split: 70/15/15 (train/val/test), shuffle enabled
-- Preprocessing: `StandardScaler` fitted on the training set only
-- Loss: Smooth L1 (Huber) loss with `beta=0.2`
-- Optimizer: AdamW
-- LR scheduling: ReduceLROnPlateau
-- Early stopping: based on validation loss
-
-### Outputs
-- Best model weights: `models/`
-- Plots: `plots/`
-- Logs: `logs/`
-
-
-## Mathematical Foundations
-
-### Global Stiffness Matrix ($\mathbf{K}$)
-
-The global stiffness matrix is the assembled collection of all element stiffness matrices. Its role:
-- Relates applied forces to resulting displacements: $\mathbf{F} = \mathbf{K} \mathbf{u}$
-- Encodes the full mechanical response of the structure
-- Boundary conditions are enforced by modifying rows/columns corresponding to constrained DOFs
-- Once assembled and boundary conditions applied, solving $\mathbf{K} \mathbf{u} = \mathbf{F}$ yields the full displacement solution
-
-### From Element to Global: FEM Pipeline
-
-1. **Element Level:** Each triangular element computes $\mathbf{K}^{(e)}$ using strain-displacement matrix $\mathbf{B}^{(e)}$ and material stiffness $\mathbf{C}$.
-2. **Global Assembly:** All element matrices are summed into $\mathbf{K}$ at global DOF locations.
-3. **Solution:** With boundary conditions applied, the system is solved for $\mathbf{u}$.
-4. **Post-Processing:** Strains $\boldsymbol{\varepsilon} = \mathbf{B} \mathbf{u}$ and stresses $\boldsymbol{\sigma} = \mathbf{C} \boldsymbol{\varepsilon}$ are computed at Gauss points.
-5. **Homogenization:** Volume-averaged stresses and strains feed into the constitutive identification.
-
----
+- LHS sampling is controlled by `simulation.seed`.
+- Input and target scalers are fitted only on the training subset.
+- The trained model and both scalers must be kept together for inference.
+- The feature and target order is defined centrally in `FNN_shared.py`.
+- Simulation mode is stored in the generated dataset as `dataset_mode`.
 
 ## Author
 
 **Andrea Vinarš**  
 Email: andrea.vinars3@gmail.com
 
----
-
 ## License
 
 MIT License
-
-
-
