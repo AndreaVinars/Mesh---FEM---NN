@@ -121,8 +121,9 @@ simulations**. The held-out test metrics are:
   - `FNN.py` — neural network training + evaluation (plots + metrics)
   - `simulation.py` — runs FEM analyses for each generated geometry (CalculiX)
   - `data_processing.py` — post-processing + dataset creation (CSV)
-- `Results/FNN/` — neural-network training and evaluation figures
-- `Results/Mesh-FEM/` — mesh and FEM load-case figures
+- `Results/` — result images displayed in this README
+  - `FNN/` — neural-network training and evaluation images
+  - `Mesh-FEM/` — mesh and FEM load-case images
 - `config.example.yaml` — example configuration
 - `requirements.txt` — Python dependencies
 
