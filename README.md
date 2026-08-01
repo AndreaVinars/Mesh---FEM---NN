@@ -67,33 +67,49 @@ Expected outputs:
 
 ---
 
-## Results (baseline)
+## Results
 
-Metrics obtained on a dataset of **5000 FEM simulations** using the baseline configuration in `config.example.yaml`.
+### FNN performance
 
-- **RMSE:** 3.792740 GPa
-- **MAE:**  2.728667 GPa
+The current four-output model was trained on a dataset of **5,000 accepted FEM
+simulations**. The held-out test metrics are:
 
-### Prediction quality (test set)
-<img src="docs/figures/SILU.png" width="850">
+| Target | RMSE | MAE |
+| --- | ---: | ---: |
+| $E_x$ [GPa] | 3.209959 | 2.216892 |
+| $E_y$ [GPa] | 3.228733 | 2.032885 |
+| $G_{xy}$ [GPa] | 1.789192 | 1.086722 |
+| $\nu_{xy}$ [-] | 0.011676 | 0.007045 |
 
-### Training curves
-<img src="docs/figures/LOSS.png" width="850">
+#### Training history
 
-### Target distribution
-<img src="docs/figures/TARGET_HIST.png" width="850">
+<img src="Results/FNN/LOSS.png" width="850">
 
-### Input parameter distributions
-<img src="docs/figures/param_histograms.png" width="850">
+#### True vs. predicted properties
 
-### Mesh example (Gmsh)
-<img src="docs/figures/GMSH.png" width="850">
+<img src="Results/FNN/SILU_E_x.png" width="420">
+<img src="Results/FNN/SILU_E_y.png" width="420">
+<img src="Results/FNN/SILU_G_xy.png" width="420">
+<img src="Results/FNN/SILU_NU_xy.png" width="420">
 
-### FEM view (CalculiX/CGX), **Note:** In this CGX view, the **+X direction points upward**
-<img src="docs/figures/CGX.png" width="850">
+#### Target distributions
 
-### Dataset snapshot
-<img src="docs/figures/Excel_data.png" width="850">
+<img src="Results/FNN/E_x_distribution.png" width="420">
+<img src="Results/FNN/E_y_distribution.png" width="420">
+<img src="Results/FNN/G_xy_distribution.png" width="420">
+<img src="Results/FNN/NU_xy_distribution.png" width="420">
+
+### Mesh and FEM results
+
+#### Periodic mesh
+
+<img src="Results/Mesh-FEM/periodic_mesh.png" width="850">
+
+#### Homogenization load cases
+
+<img src="Results/Mesh-FEM/Tensile_X.png" width="420">
+<img src="Results/Mesh-FEM/Tensile_Y.png" width="420">
+<img src="Results/Mesh-FEM/Shear_XY.png" width="420">
 
 ---
 
@@ -105,7 +121,8 @@ Metrics obtained on a dataset of **5000 FEM simulations** using the baseline con
   - `FNN.py` — neural network training + evaluation (plots + metrics)
   - `simulation.py` — runs FEM analyses for each generated geometry (CalculiX)
   - `data_processing.py` — post-processing + dataset creation (CSV)
-- `docs/figures/` — figures used in the README
+- `Results/FNN/` — neural-network training and evaluation figures
+- `Results/Mesh-FEM/` — mesh and FEM load-case figures
 - `config.example.yaml` — example configuration
 - `requirements.txt` — Python dependencies
 
