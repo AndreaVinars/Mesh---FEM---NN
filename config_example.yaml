@@ -1,0 +1,63 @@
+# =============================================================================
+# Periodic RVE simulation with two elliptical holes
+# =============================================================================
+
+# Plate dimensions in millimetres.
+plate:
+  width: 12.0
+  height: 12.0
+  thickness: 1.0
+
+# Prescribed macroscopic normal and engineering shear strains.
+loading:
+  eps0: 0.005
+  gamma0: 0.005
+
+# Isotropic matrix material. Elastic moduli are given in MPa.
+material:
+  name: "Steel"
+  youngs_modulus: 210000.0
+  poisson_ratio: 0.3
+
+# Latin Hypercube Sampling bounds.
+# Parameter order:
+# [x1, y1, rx1, ry1, angle1, x2, y2, rx2, ry2, angle2]
+# Positions and semi-axes are in millimetres; angles are in degrees.
+lhs_bounds:
+  lower: [3.1, 3.1, 0.3, 0.3, 0.0, 3.1, 3.1, 0.3, 0.3, 0.0]
+  upper: [8.9, 8.9, 3.0, 2.0, 359.9, 8.9, 8.9, 3.0, 2.0, 359.9]
+
+# Batch execution settings.
+simulation:
+  # Supported modes:
+  # - direct_contraction: calculate the constants from the primary responses
+  #   and obtain NU_xy from the transverse displacement in the EX load case.
+  # - from_c: construct and invert the complete in-plane stiffness matrix.
+  calculation_mode: "direct_contraction"
+  num_simulations: 20
+  n_jobs: 6
+  seed: 30
+  timeout_seconds: 60
+
+# Gmsh element sizes in millimetres. The mesh is refined near the holes.
+mesh:
+  size_min: 0.10
+  size_max: 0.60
+
+# Reject geometries whose accepted mesh exceeds the poor-element limit.
+mesh_quality:
+  poor_quality_threshold: 0.60
+  max_poor_elements: 20
+
+# Paths are resolved relative to this configuration file.
+paths:
+  # Replace CHANGE_ME with the full path to ccx or ccx_static.
+  # The CALCULIX_CMD environment variable can override this value.
+  calculix: "CHANGE_ME"
+  working_dir: "."
+
+# Generated output directories, resolved relative to working_dir.
+output:
+  input_files: "input_files"
+  output_files: "output_files"
+  data_dir: "data"
