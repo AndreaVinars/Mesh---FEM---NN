@@ -12,7 +12,7 @@ import numpy as np
 import torch
 import joblib
 
-from FNN_shared import FEATURE_NAMES, FNN, build_feature_vector
+from FNN_shared import FNN, build_feature_vector
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -89,12 +89,6 @@ def predict_custom(
         x1, y1, rx1, ry1, angle1_deg,
         x2, y2, rx2, ry2, angle2_deg,
     )
-
-    if x_custom.shape[1] != len(FEATURE_NAMES):
-        raise ValueError(
-            f"x_custom has {x_custom.shape[1]} features, "
-            f"but model expects {len(FEATURE_NAMES)}."
-        )
 
     # Validate compatibility with scaler artifacts created by scikit-learn.
     if (

@@ -16,7 +16,7 @@ FNN_PIPELINE_DIR = REPOSITORY_ROOT / "Pipeline" / "FNN"
 if str(FNN_PIPELINE_DIR) not in sys.path:
     sys.path.insert(0, str(FNN_PIPELINE_DIR))
 
-from FNN_shared import FEATURE_NAMES, FNN, build_feature_vector  # noqa: E402
+from FNN_shared import FNN, build_feature_vector  # noqa: E402
 
 
 MODEL_DIR = Path(
@@ -76,12 +76,6 @@ def predict_custom(
         x1, y1, rx1, ry1, angle1_deg,
         x2, y2, rx2, ry2, angle2_deg,
     )
-
-    if x_custom.shape[1] != len(FEATURE_NAMES):
-        raise ValueError(
-            f"x_custom has {x_custom.shape[1]} features, "
-            f"but model expects {len(FEATURE_NAMES)}."
-        )
 
     if (
         hasattr(scaler_X, "n_features_in_")
