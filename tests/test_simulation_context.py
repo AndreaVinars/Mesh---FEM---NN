@@ -1,5 +1,4 @@
 import importlib.util
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,6 +12,9 @@ SPEC.loader.exec_module(simulation_context)
 
 
 def make_config(working_dir: Path) -> dict:
+    calculix_stub = working_dir / "ccx_test"
+    calculix_stub.touch()
+
     return {
         "plate": {"width": 12.0, "height": 12.0, "thickness": 1.0},
         "loading": {"eps0": 0.005, "gamma0": 0.005},
@@ -37,7 +39,7 @@ def make_config(working_dir: Path) -> dict:
             "poor_quality_threshold": 0.6,
             "max_poor_elements": 20,
         },
-        "paths": {"calculix": sys.executable, "working_dir": str(working_dir)},
+        "paths": {"calculix": str(calculix_stub), "working_dir": str(working_dir)},
         "output": {
             "input_files": "input_files",
             "output_files": "output_files",
@@ -55,7 +57,7 @@ class SimulationContextTests(unittest.TestCase):
             context = simulation_context.build_ctx(config, root / "config.yaml")
 
             self.assertEqual(context.calculation_mode, "direct_contraction")
-            self.assertEqual(context.calculix_path, Path(sys.executable).resolve())
+            self.assertEqual(context.calculix_path, (root / "ccx_test").resolve())
             self.assertEqual(context.input_dir, root / "input_files")
 
     def test_zero_parallel_jobs_is_rejected(self):
