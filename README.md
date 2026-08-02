@@ -479,7 +479,6 @@ GitHub Actions runs the following checks on every push and pull request:
 
 ```bash
 python -m ruff check Main Pipeline tests
-python -m compileall -q Main Pipeline tests
 python -m unittest discover -s tests -v
 ```
 

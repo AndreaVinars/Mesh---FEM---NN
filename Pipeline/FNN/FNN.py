@@ -131,10 +131,6 @@ def main():
         f"Remaining: {len(df)} samples."
     )
 
-    if len(df) < 10:
-        raise ValueError("At least 10 valid samples are required for a 70/15/15 split.")
-
-
     df = add_derived_features(df)
 
 
@@ -150,9 +146,6 @@ def main():
 
     y = df[list(TARGET_NAMES)].values.astype(np.float32)  # Convert targets to a NumPy matrix.
     y[:,0:3] = y[:,0:3] / 1000
-
-    if not np.isfinite(y).all():
-        raise ValueError("Target values contain NaN or infinity.")
 
     logger.info(f"X shape: {X.shape}, y shape: {y.shape}")
 

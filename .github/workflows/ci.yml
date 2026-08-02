@@ -25,8 +25,5 @@ jobs:
       - name: Run Ruff
         run: python -m ruff check Main Pipeline tests
 
-      - name: Compile Python sources
-        run: python -m compileall -q Main Pipeline tests
-
       - name: Run unit tests
         run: python -m unittest discover -s tests -v

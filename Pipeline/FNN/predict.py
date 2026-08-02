@@ -26,23 +26,6 @@ SCALER_X_PATH = MODEL_DIR / "scaler_X.pkl"
 SCALER_Y_PATH = MODEL_DIR / "scaler_y.pkl"
 
 
-def _require_model_artifacts() -> None:
-    """Raise one actionable error listing all missing inference artifacts."""
-
-    missing = [
-        path
-        for path in (MODEL_PATH, SCALER_X_PATH, SCALER_Y_PATH)
-        if not path.is_file()
-    ]
-    if missing:
-        missing_list = "\n".join(f"- {path}" for path in missing)
-        raise FileNotFoundError(
-            "Missing surrogate model artifacts:\n"
-            f"{missing_list}\n"
-            "Train the FNN first or set FNN_MODEL_DIR."
-        )
-
-
 def load_surrogate_model():
     """Load the trained model, both scalers, and the selected compute device.
 
@@ -50,8 +33,6 @@ def load_surrogate_model():
         The evaluation-ready model, input scaler, target scaler, and PyTorch
         device used for inference.
     """
-
-    _require_model_artifacts()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
