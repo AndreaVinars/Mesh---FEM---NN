@@ -7,7 +7,9 @@ the configuration file independently in each process.
 
 from __future__ import annotations
 
+import math
 import os
+import shutil
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict
@@ -23,6 +25,81 @@ def _resolve_path(value: str, base_dir: Path) -> Path:
     if path.is_absolute():
         return path
     return (base_dir / path).resolve()
+
+
+def _resolve_executable(value: str, base_dir: Path) -> Path:
+    """Resolve an executable path or command name and fail before workers start."""
+
+    command = str(value).strip()
+    if not command:
+        raise FileNotFoundError("The CalculiX executable is not configured.")
+
+    path = Path(command).expanduser()
+    local_path = path if path.is_absolute() else (base_dir / path).resolve()
+
+    if local_path.is_file():
+        return local_path
+
+    if path.parent == Path("."):
+        executable = shutil.which(command)
+        if executable:
+            return Path(executable).resolve()
+
+    raise FileNotFoundError(
+        f"CalculiX executable not found: {command!r}. "
+        "Set paths.calculix in config.yaml or define CALCULIX_CMD."
+    )
+
+
+def _validate_context(ctx: SimpleNamespace) -> None:
+    """Validate normalized settings before launching Gmsh or worker processes."""
+
+    positive_values = {
+        "plate.width": ctx.plate_width,
+        "plate.height": ctx.plate_height,
+        "plate.thickness": ctx.thickness,
+        "material.youngs_modulus": ctx.material_E,
+        "mesh.size_min": ctx.size_min,
+        "mesh.size_max": ctx.size_max,
+    }
+    for name, value in positive_values.items():
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError(f"{name} must be a finite positive number, got {value!r}.")
+
+    for name, value in {"loading.eps0": ctx.eps0, "loading.gamma0": ctx.gamma0}.items():
+        if not math.isfinite(value) or value == 0:
+            raise ValueError(f"{name} must be finite and nonzero, got {value!r}.")
+
+    if not -1.0 < ctx.material_nu < 0.5:
+        raise ValueError("material.poisson_ratio must satisfy -1 < nu < 0.5.")
+
+    if ctx.size_min > ctx.size_max:
+        raise ValueError("mesh.size_min must not exceed mesh.size_max.")
+
+    if not 0.0 <= ctx.poor_quality_threshold <= 1.0:
+        raise ValueError("mesh_quality.poor_quality_threshold must be between 0 and 1.")
+    if ctx.max_poor_elements < 0:
+        raise ValueError("mesh_quality.max_poor_elements must be nonnegative.")
+
+    if ctx.num_sims <= 0:
+        raise ValueError("simulation.num_simulations must be positive.")
+    if ctx.n_jobs == 0:
+        raise ValueError("simulation.n_jobs cannot be zero.")
+    if ctx.timeout_seconds <= 0:
+        raise ValueError("simulation.timeout_seconds must be positive.")
+
+    if len(ctx.lower_bounds) != 10 or len(ctx.upper_bounds) != 10:
+        raise ValueError("lhs_bounds.lower and lhs_bounds.upper must each contain 10 values.")
+
+    for index, (lower, upper) in enumerate(
+        zip(ctx.lower_bounds, ctx.upper_bounds, strict=True)
+    ):
+        if not math.isfinite(float(lower)) or not math.isfinite(float(upper)):
+            raise ValueError(f"LHS bounds at index {index} must be finite.")
+        if float(lower) >= float(upper):
+            raise ValueError(
+                f"LHS lower bound must be smaller than the upper bound at index {index}."
+            )
 
 
 def build_ctx(
@@ -45,7 +122,8 @@ def build_ctx(
         execution, sampling, and output settings.
 
     Raises:
-        ValueError: If ``calculation_mode`` is not supported.
+        FileNotFoundError: If the CalculiX executable cannot be resolved.
+        ValueError: If a configuration value is invalid.
     """
 
     ctx = SimpleNamespace()
@@ -58,7 +136,7 @@ def build_ctx(
     working_dir = _resolve_path(cfg["paths"]["working_dir"], cfg_dir)
 
     calculix_value = os.environ.get("CALCULIX_CMD", cfg["paths"]["calculix"])
-    calculix_path = _resolve_path(calculix_value, cfg_dir)
+    calculix_path = _resolve_executable(calculix_value, cfg_dir)
 
     input_dir = _resolve_path(cfg["output"]["input_files"], working_dir)
     output_dir = _resolve_path(cfg["output"]["output_files"], working_dir)
@@ -135,6 +213,8 @@ def build_ctx(
     ctx.data_dir = data_dir
     ctx.logs_dir = logs_dir
     ctx.calculix_path = calculix_path
+
+    _validate_context(ctx)
 
     return ctx
 

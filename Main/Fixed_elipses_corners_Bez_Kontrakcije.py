@@ -14,12 +14,13 @@ properties with the trained feed-forward neural-network surrogate.
 Author: Andrea Vinarš
 """
 
-import gmsh
 import os
-import numpy as np
 import subprocess
-import pandas as pd
 from pathlib import Path
+
+import gmsh
+import numpy as np
+import pandas as pd
 
 from predict_fixed import load_surrogate_model, predict_custom
 
@@ -33,8 +34,6 @@ def set_periodic_edges_before_mesh(surface_tag: int,
     This function must run before mesh generation so that Gmsh creates matching
     node pairs on the left-right and bottom-top boundaries.
     """
-
-    import gmsh
 
     edges = gmsh.model.getBoundary([(2, surface_tag)],
                                    oriented=False,
@@ -65,10 +64,10 @@ def set_periodic_edges_before_mesh(surface_tag: int,
 
     if None in [left_edge, right_edge, bottom_edge, top_edge]:
         raise RuntimeError(
-        print(
             f"Could not find all outer edges:\n"
             f"left={left_edge}, right={right_edge}, "
-            f"bottom={bottom_edge}, top={top_edge}"))
+            f"bottom={bottom_edge}, top={top_edge}"
+        )
 
 
     aff_lr = [
@@ -106,13 +105,16 @@ def build_equation_block_after_mesh(periodic_edges: dict,
     bottom-right, top-right, and top-left corner-node tags.
     """
 
-    import gmsh
-
     right_edge = periodic_edges["right_edge"]
     top_edge = periodic_edges["top_edge"]
 
-    tagM_lr, right_nodes, left_nodes, _ = gmsh.model.mesh.getPeriodicNodes(1, right_edge)
-    tagM_tb, top_nodes, bottom_nodes, _ = gmsh.model.mesh.getPeriodicNodes(1, top_edge)
+    # Include midside nodes so second-order boundary edges are fully constrained.
+    tagM_lr, right_nodes, left_nodes, _ = gmsh.model.mesh.getPeriodicNodes(
+        1, right_edge, True
+    )
+    tagM_tb, top_nodes, bottom_nodes, _ = gmsh.model.mesh.getPeriodicNodes(
+        1, top_edge, True
+    )
 
     print(f"LR periodic master: {tagM_lr}, number of pairs: {len(right_nodes)}")
     print(f"TB periodic master: {tagM_tb}, number of pairs: {len(top_nodes)}")
@@ -194,9 +196,9 @@ def build_equation_block_after_mesh(periodic_edges: dict,
         (corner_3, corner_4),
     }
 
-    for nr, nl in zip(right_nodes, left_nodes):
-        nr = int(nr)
-        nl = int(nl)
+    for right_node, left_node in zip(right_nodes, left_nodes, strict=True):
+        nr = int(right_node)
+        nl = int(left_node)
 
         if (nr, nl) in corner_lr_pairs:
             continue
@@ -229,9 +231,9 @@ def build_equation_block_after_mesh(periodic_edges: dict,
         (corner_4, corner_1),
     }
 
-    for nt, nb in zip(top_nodes, bottom_nodes):
-        nt = int(nt)
-        nb = int(nb)
+    for top_node, bottom_node in zip(top_nodes, bottom_nodes, strict=True):
+        nt = int(top_node)
+        nb = int(bottom_node)
 
         if (nt, nb) in corner_tb_pairs:
             continue
@@ -261,6 +263,7 @@ DEFAULT_WORKDIR = Path(__file__).resolve().parent
 # Set CALCULIX_CMD when the CalculiX executable is not available on PATH.
 # PowerShell example: $env:CALCULIX_CMD = 'C:/path/to/ccx_static.exe'
 DEFAULT_CALCULIX_CMD = os.environ.get("CALCULIX_CMD") or ("ccx_static.exe" if os.name == "nt" else "ccx")
+DEFAULT_CGX_CMD = os.environ.get("CGX_CMD") or ("cgx_STATIC.exe" if os.name == "nt" else "cgx")
 
 # Interactive viewers remain disabled during normal batch execution.
 SHOW_GUI = False
@@ -621,8 +624,9 @@ def geometry():
 
         return mesh_content, corner_1, corner_2, corner_3, corner_4, equation_block
 
-    except FileExistsError:
-        print("File not found")
+    finally:
+        if gmsh.isInitialized():
+            gmsh.finalize()
 
 
 def make_input_file(base_data, load_case):
@@ -716,32 +720,36 @@ def run_simulation(base_model, load_case):
     print(f"[RUN] Job name: {job_name}")
     print(f"[RUN] Input file: {inp_path}")
 
+    # Never allow a failed rerun to reuse an output from an earlier analysis.
+    for suffix in (".dat", ".frd", ".sta", ".cvg", ".12d"):
+        stale_output = Path(f"{job_name}{suffix}")
+        if stale_output.exists():
+            stale_output.unlink()
+
     try:
         result = subprocess.run(
             [DEFAULT_CALCULIX_CMD, job_name],
             capture_output=True,
             text=True,
-            timeout=60)
+            timeout=60,
+            check=False,
+        )
 
-    except FileNotFoundError:
+    except FileNotFoundError as exc:
         raise FileNotFoundError(
             f"CalculiX executable not found: {DEFAULT_CALCULIX_CMD}"
-        )
+        ) from exc
 
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as exc:
         raise TimeoutError(
             f"CalculiX simulation timed out for {job_name}"
-        )
+        ) from exc
 
     if result.returncode != 0:
-        print("\n[CalculiX ERROR]")
-        print("Return code:", result.returncode)
-
-        print("\n--- STDOUT ---")
-        print(result.stdout)
-
-        print("\n--- STDERR ---")
-        print(result.stderr)
+        raise RuntimeError(
+            f"CalculiX failed for {job_name} with return code {result.returncode}.\n"
+            f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        )
 
     print("[CalculiX] Analysis completed successfully")
 
@@ -754,10 +762,9 @@ def run_simulation(base_model, load_case):
 
     if SHOW_CGX:
         frd_path = f"{job_name}.frd"
-        CGX_PATH = r"C:/Users/andrea/Desktop/calculix_2.23_4win/calculix_2.23_4win/cgx_STATIC.exe"
 
         if os.path.exists(frd_path):
-            subprocess.run([CGX_PATH, frd_path])
+            subprocess.run([DEFAULT_CGX_CMD, frd_path], check=False)
 
         else:
             print(f"[CGX] FRD file not found: {frd_path}")
@@ -822,7 +829,8 @@ def compute_C_matrix():
     E_x = 1 / S[0, 0]
     E_y = 1 / S[1, 1]
     G_xy = 1 / S[2, 2]
-    NU_xy = - S[0, 1] / S[0, 0]
+    # Under uniaxial x stress, nu_xy = -eps_y / eps_x = -S21 / S11.
+    NU_xy = -S[1, 0] / S[0, 0]
 
     print(f"Young's modulus in the x-direction: {E_x :.2f} MPa")
     print(f"Young's modulus in the y-direction: {E_y :.2f} MPa")

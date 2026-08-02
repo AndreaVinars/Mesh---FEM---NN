@@ -1,5 +1,7 @@
 # Effective Elastic Properties of Plates with Elliptical Holes
 
+[![CI](https://github.com/AndreaVinars/Mesh---FEM---NN/actions/workflows/ci.yml/badge.svg)](https://github.com/AndreaVinars/Mesh---FEM---NN/actions/workflows/ci.yml)
+
 This project combines finite element homogenization and a feed-forward neural
 network (FNN) to estimate the in-plane effective elastic properties of a 2D
 periodic plate containing two elliptical holes.
@@ -23,9 +25,10 @@ properties directly from the geometry of the two holes.
 - [Repository Structure](#repository-structure)
 - [Installation](#installation)
 - [Running FEM Simulations](#running-fem-simulations)
-- [Fixed-Geometry Validation](#fixed-geometry-validation)
 - [Neural-Network Surrogate](#neural-network-surrogate)
+- [Fixed-Geometry Validation](#fixed-geometry-validation)
 - [Representative Results](#representative-results)
+- [Automated Checks](#automated-checks)
 - [Assumptions and Limitations](#assumptions-and-limitations)
 
 ## Key Features
@@ -166,16 +169,19 @@ $\nu_{xy}$.
 |       |-- FNN_shared.py                 Shared features and FNN architecture
 |       `-- predict.py                    General inference helpers
 |-- config_example.yaml           Example simulation configuration
+|-- pyproject.toml                Ruff configuration
 |-- requirements.txt              Python dependencies
-|-- data/                         Datasets and parameter histograms
-|-- models/                       Saved model and scaler artifacts
+|-- models/                       Published model and scaler artifacts
 |-- Results/
 |   |-- Mesh-FEM/                 Mesh and FEM result images
 |   `-- FNN/                      Training and evaluation images
+`-- tests/                        Configuration-validation tests
 ```
 
-The `input_files/`, `output_files/`, and `logs/` directories contain generated
-simulation artifacts and can become large during dataset generation.
+The `data/`, `input_files/`, `output_files/`, `logs/`, and `plots/` directories
+are generated locally and ignored by Git because they can become large. The
+three small files required for immediate surrogate inference are published in
+`models/`.
 
 All commands below assume that the current working directory is the repository
 root.
@@ -234,8 +240,10 @@ Linux or macOS:
 cp config_example.yaml config.yaml
 ```
 
-Edit `config.yaml` and provide the path to the CalculiX executable. All
-available settings and their units are documented in `config_example.yaml`.
+Edit `config.yaml` and provide either the full path to the CalculiX executable
+or a command such as `ccx` that is available on `PATH`. All settings and their
+units are documented in `config_example.yaml`; invalid dimensions, LHS bounds,
+mesh settings, and solver paths are rejected before parallel workers start.
 
 The `CALCULIX_CMD` environment variable can override the executable configured
 in YAML:
@@ -269,19 +277,6 @@ logs/sim_XXXX.log
 
 The dataset uses a semicolon separator and a decimal comma.
 
-## Fixed-Geometry Validation
-
-The main example runs the three FEM load cases for one fixed geometry and
-compares the homogenized properties with the trained surrogate:
-
-```bash
-python Main/Fixed_elipses_corners_Bez_Kontrakcije.py
-```
-
-By default, the script loads `best_silu.pt`, `scaler_X.pkl`, and
-`scaler_y.pkl` from the root `models/` directory. Set `CALCULIX_CMD` or
-`FNN_MODEL_DIR` to override the corresponding executable or model location.
-
 ## Neural-Network Surrogate
 
 The user supplies ten geometric values for two ellipses. These values are
@@ -290,6 +285,10 @@ expanded into 26 model features:
 - 18 base features, including trigonometric angle encoding, relative position,
   distance, areas, and relative orientation
 - 8 derived features describing area, aspect-ratio, and semi-axis relationships
+
+The feature convention uses `rx >= ry` for each ellipse, matching the sorted
+semi-axes produced by the LHS generator. Inference rejects non-finite values,
+nonpositive semi-axes, and inputs that violate this convention.
 
 The FNN predicts the following targets simultaneously:
 
@@ -307,8 +306,15 @@ learning-rate reduction on validation plateaus, and early stopping.
 
 ### Training
 
-Set the working directory and dataset explicitly before starting training.
-For a `direct_contraction` dataset generated with seed 30:
+The default paths use the repository root and the `direct_contraction` dataset
+generated with seed 30. After generating that dataset, start training with:
+
+```bash
+python Pipeline/FNN/FNN.py
+```
+
+Use `FNN_WORK_DIR` and `FNN_DATASET_PATH` only when the outputs or dataset are
+stored elsewhere. For example:
 
 Windows PowerShell:
 
@@ -341,8 +347,10 @@ logs/train_<timestamp>.log
 ### Inference
 
 The reusable inference functions load the model and both scalers from the root
-`models/` directory. Point `FNN_MODEL_DIR` to a different artifact directory
-when needed:
+`models/` directory. A compatible pretrained model and its scalers are included,
+so the example below works immediately after installing the Python dependencies.
+Training provenance and SHA-256 checksums are documented in `models/README.md`.
+Point `FNN_MODEL_DIR` to a different artifact directory when needed:
 
 ```powershell
 $env:FNN_MODEL_DIR = (Resolve-Path ".\models").Path
@@ -382,6 +390,19 @@ validation workflow is available in
 
 The surrogate should only be used within the geometric parameter range covered
 by its training dataset.
+
+## Fixed-Geometry Validation
+
+The main validation example runs the three FEM load cases for one fixed
+geometry and compares the homogenized properties with the published surrogate:
+
+```bash
+python Main/Fixed_elipses_corners_Bez_Kontrakcije.py
+```
+
+Set `CALCULIX_CMD` if `ccx` or `ccx_static.exe` is not available on `PATH`.
+Set `FNN_MODEL_DIR` to evaluate different model artifacts. The optional CGX
+viewer remains disabled by default and can be configured through `CGX_CMD`.
 
 ## Representative Results
 
@@ -451,6 +472,21 @@ macroscopic deformation states used during homogenization.
 | $G_{xy}$ | $\nu_{xy}$ |
 | --- | --- |
 | ![Distribution of G_xy](Results/FNN/G_xy_distribution.png) | ![Distribution of NU_xy](Results/FNN/NU_xy_distribution.png) |
+
+## Automated Checks
+
+GitHub Actions runs the following checks on every push and pull request:
+
+```bash
+python -m ruff check Main Pipeline tests
+python -m compileall -q Main Pipeline tests
+python -m unittest discover -s tests -v
+```
+
+These checks cover Python syntax, undefined names and import placement, plus
+normalization and rejection of invalid simulation configurations. Full FEM and
+FNN training runs remain local because they require CalculiX and substantially
+more compute time.
 
 ## Assumptions and Limitations
 

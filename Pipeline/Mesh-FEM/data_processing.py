@@ -186,16 +186,14 @@ def calculate_sigma_hom(dat_path: str) -> np.ndarray:
     sigma_y = (df["Syy_MPa"] * df["element_volume"]).sum() / total_volume
     tau_xy = (df["Sxy_MPa"] * df["element_volume"]).sum() / total_volume
 
-    sigma_hom = np.array([sigma_x, sigma_y, tau_xy], dtype=float)
-
-    return sigma_hom
+    return np.array([sigma_x, sigma_y, tau_xy], dtype=float)
 
 
 def read_node_displacement(
     dat_path: str,
     node_id: int,
 ) -> Dict[str, float]:
-    """Read the first displacement result recorded for a selected node.
+    """Read the latest displacement result recorded for a selected node.
 
     Returns:
         A mapping with ``ux``, ``uy``, and ``uz`` components.
@@ -206,6 +204,7 @@ def read_node_displacement(
 
     node_id = int(node_id)
     reading_displacements = False
+    latest_displacement = None
 
     with open(dat_path, "r", encoding="utf-8", errors="replace") as f:
         for line in f:
@@ -234,13 +233,16 @@ def read_node_displacement(
                     continue
 
                 if current_node == node_id:
-                    return {
+                    latest_displacement = {
                         "ux": ux,
                         "uy": uy,
                         "uz": uz,
                     }
 
-    raise RuntimeError(f"Displacement of node {node_id} was not found in {dat_path}")
+    if latest_displacement is None:
+        raise RuntimeError(f"Displacement of node {node_id} was not found in {dat_path}")
+
+    return latest_displacement
 
 
 def compute_effective_constants_from_C(

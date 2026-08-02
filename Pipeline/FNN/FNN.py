@@ -21,6 +21,9 @@ import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 import joblib
@@ -48,40 +51,48 @@ CSV_PATH = Path(
     )
 ).expanduser()
 
-os.chdir(FNN_WORK_DIR)
-
-# ---------------------------
-# Configure console logging and, optionally, a timestamped log file.
-# ---------------------------
 LOG_LEVEL = logging.INFO
 LOG_TO_FILE = True  # Set to False to disable file logging.
 
-logger = logging.getLogger("FNN")
-logger.setLevel(LOG_LEVEL)
-logger.handlers.clear()  # Avoid duplicate handlers when re-running in Spyder.
 
-_fmt = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+def _setup_logger(work_dir: Path) -> logging.Logger:
+    """Create training log handlers without side effects during module import."""
 
-# Console handler
-_ch = logging.StreamHandler()
-_ch.setLevel(LOG_LEVEL)
-_ch.setFormatter(_fmt)
-logger.addHandler(_ch)
+    logger = logging.getLogger("FNN")
+    logger.setLevel(LOG_LEVEL)
+    logger.handlers.clear()
 
-# File handler (optional)
-if LOG_TO_FILE:
-    os.makedirs("logs", exist_ok=True)
-    log_path = os.path.join("logs", f"train_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
-    _fh = logging.FileHandler(log_path, encoding="utf-8")
-    _fh.setLevel(LOG_LEVEL)
-    _fh.setFormatter(_fmt)
-    logger.addHandler(_fh)
-    logger.info(f"Logging to file: {log_path}")
+    formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(LOG_LEVEL)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    if LOG_TO_FILE:
+        logs_dir = work_dir / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        log_path = logs_dir / f"train_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        file_handler = logging.FileHandler(log_path, encoding="utf-8")
+        file_handler.setLevel(LOG_LEVEL)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+        logger.info(f"Logging to file: {log_path}")
+
+    return logger
 
 
 
 def main():
     """Train, evaluate, save, and plot the effective-property surrogate."""
+
+    work_dir = FNN_WORK_DIR.resolve()
+    dataset_path = CSV_PATH if CSV_PATH.is_absolute() else REPOSITORY_ROOT / CSV_PATH
+    dataset_path = dataset_path.resolve()
+
+    work_dir.mkdir(parents=True, exist_ok=True)
+    os.chdir(work_dir)
+    logger = _setup_logger(work_dir)
 
     # =============================================================================
     # Reproducibility and compute device
@@ -97,9 +108,12 @@ def main():
     # =============================================================================
     # Load, validate, split, and scale the dataset
     # =============================================================================
-    if not os.path.exists(CSV_PATH):
-        raise FileNotFoundError(f"CSV not found: {CSV_PATH} (put your dataset into ./data/)")
-    df = pd.read_csv(CSV_PATH, sep=";", decimal=",")
+    if not dataset_path.is_file():
+        raise FileNotFoundError(
+            f"CSV not found: {dataset_path}. Generate a dataset first or set "
+            "FNN_DATASET_PATH."
+        )
+    df = pd.read_csv(dataset_path, sep=";", decimal=",")
 
     required_cols = [*TARGET_NAMES, *BASE_FEATURE_NAMES]
 
@@ -107,11 +121,18 @@ def main():
     if missing:
        raise KeyError(f"Missing required columns in CSV: {missing}")
 
-    # Remove samples with non-physical target values.
+    # Elastic moduli must be positive. Negative Poisson ratios are retained
+    # because auxetic effective responses are physically possible.
     initial_rows = len(df)
-    df = df[(df["E_x"] > 0) & (df["E_y"] > 0) & (df["G_xy"] > 0) & (df["NU_xy"] > 0)]
+    df = df[(df["E_x"] > 0) & (df["E_y"] > 0) & (df["G_xy"] > 0)]
     removed_rows = initial_rows - len(df)
-    logger.info(f"Removed {removed_rows} rows with E_eff ≤ 0. Remaining: {len(df)} samples.")
+    logger.info(
+        f"Removed {removed_rows} rows with nonpositive elastic moduli. "
+        f"Remaining: {len(df)} samples."
+    )
+
+    if len(df) < 10:
+        raise ValueError("At least 10 valid samples are required for a 70/15/15 split.")
 
 
     df = add_derived_features(df)
@@ -129,6 +150,9 @@ def main():
 
     y = df[list(TARGET_NAMES)].values.astype(np.float32)  # Convert targets to a NumPy matrix.
     y[:,0:3] = y[:,0:3] / 1000
+
+    if not np.isfinite(y).all():
+        raise ValueError("Target values contain NaN or infinity.")
 
     logger.info(f"X shape: {X.shape}, y shape: {y.shape}")
 
@@ -367,7 +391,7 @@ def main():
         mae_values = mae(y_true, y_pred)
         metrics ={}
 
-        for target, r, a in zip(TARGET_NAMES, rmse_values, mae_values):
+        for target, r, a in zip(TARGET_NAMES, rmse_values, mae_values, strict=True):
 
             metrics[target] = {"RMSE": float(r),
                              "MAE": float(a)}
@@ -390,7 +414,7 @@ def main():
 
     units = ["GPa", "GPa", "GPa", "-"]
 
-    for i, (target, unit) in enumerate(zip(TARGET_NAMES, units)):
+    for i, (target, unit) in enumerate(zip(TARGET_NAMES, units, strict=True)):
 
         y_true_target = y_true_silu[:, i]
         y_pred_target = y_pred_silu[:, i]
@@ -407,10 +431,10 @@ def main():
         plt.tight_layout()
         TRUE_PRED = os.path.join("plots", f"SILU_{target}.png")
         plt.savefig(TRUE_PRED, dpi=200, bbox_inches="tight")
-        plt.show()
+        plt.close()
 
 
-    for i, (target, unit) in enumerate(zip(TARGET_NAMES, units)):
+    for i, (target, unit) in enumerate(zip(TARGET_NAMES, units, strict=True)):
 
         y_target = y[:, i]
 
@@ -422,7 +446,7 @@ def main():
 
         TARGET_HIST = os.path.join("plots", f"{target}_distribution.png")
         plt.savefig(TARGET_HIST, dpi=200, bbox_inches="tight")
-        plt.show()
+        plt.close()
 
     plt.figure()
     plt.plot(hist_silu["train"], label="Train")
@@ -435,7 +459,7 @@ def main():
 
     LOSS = os.path.join("plots", "LOSS.png")
     plt.savefig(LOSS, dpi=200, bbox_inches="tight")
-    plt.show()
+    plt.close()
 
 if __name__ == "__main__":
     main()

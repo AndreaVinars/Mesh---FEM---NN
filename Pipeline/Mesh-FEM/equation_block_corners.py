@@ -201,9 +201,9 @@ def build_equation_block_after_mesh(
         (corner_3, corner_4),
     }
 
-    for nr, nl in zip(right_nodes, left_nodes):
-        nr = int(nr)
-        nl = int(nl)
+    for right_node, left_node in zip(right_nodes, left_nodes, strict=True):
+        nr = int(right_node)
+        nl = int(left_node)
 
         if (nr, nl) in corner_lr_pairs:
             continue
@@ -232,9 +232,9 @@ def build_equation_block_after_mesh(
         (corner_4, corner_1),
     }
 
-    for nt, nb in zip(top_nodes, bottom_nodes):
-        nt = int(nt)
-        nb = int(nb)
+    for top_node, bottom_node in zip(top_nodes, bottom_nodes, strict=True):
+        nt = int(top_node)
+        nb = int(bottom_node)
 
         if (nt, nb) in corner_tb_pairs:
             continue

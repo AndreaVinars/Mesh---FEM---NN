@@ -207,7 +207,7 @@ def create_base_model(
         element_data = gmsh.model.mesh.getElements(dim=2)
         element_tag_groups = element_data[1]
         if not element_tag_groups:
-            raise RuntimeError(f"{ctx}: mesh contains no 2D elements")
+            raise RuntimeError(f"Geometry {sim_number:04d}: mesh contains no 2D elements")
         element_tags = np.concatenate(element_tag_groups)
 
         element_qualities = np.array(
@@ -221,9 +221,10 @@ def create_base_model(
 
         if bad_elems > 0 or bad_jacobian_elements > 0:
             logger.warning(
-                f"{ctx}: curved second-order mesh has {bad_elems} invalid elements. "
-                f"{ctx}: curved second-order mesh has {bad_jacobian_elements} negative jacobians"
-                "Regenerating as straight-sided second-order mesh"
+                f"Geometry {sim_number:04d}: curved second-order mesh has "
+                f"{bad_elems} invalid elements and {bad_jacobian_elements} "
+                "nonpositive Jacobians. Regenerating as a straight-sided "
+                "second-order mesh."
             )
 
             # Clear existing mesh, keep geometry
@@ -239,7 +240,9 @@ def create_base_model(
             element_data = gmsh.model.mesh.getElements(dim=2)
             element_tag_groups = element_data[1]
             if not element_tag_groups:
-                raise RuntimeError(f"{ctx}: mesh contains no 2D elements")
+                raise RuntimeError(
+                    f"Geometry {sim_number:04d}: mesh contains no 2D elements"
+                )
             element_tags = np.concatenate(element_tag_groups)
 
             element_qualities = np.array(
@@ -255,9 +258,9 @@ def create_base_model(
 
         if bad_elems > 0 or bad_jacobian_elements > 0:
             logger.warning(
-                f"{ctx}: straight-sided second-order mesh has {bad_elems} invalid elements. "
-                f"{ctx}: straight-sided second-order mesh has {bad_jacobian_elements} negative jacobians"
-                "Regenerating as finer first-order mesh"
+                f"Geometry {sim_number:04d}: straight-sided second-order mesh "
+                f"has {bad_elems} invalid elements and {bad_jacobian_elements} "
+                "nonpositive Jacobians. Regenerating as a finer first-order mesh."
             )
 
             # Clear existing mesh, keep geometry
@@ -278,7 +281,9 @@ def create_base_model(
             element_data = gmsh.model.mesh.getElements(dim=2)
             element_tag_groups = element_data[1]
             if not element_tag_groups:
-                raise RuntimeError(f"{ctx}: mesh contains no 2D elements")
+                raise RuntimeError(
+                    f"Geometry {sim_number:04d}: mesh contains no 2D elements"
+                )
             element_tags = np.concatenate(element_tag_groups)
 
             element_qualities = np.array(
@@ -294,8 +299,9 @@ def create_base_model(
 
             if bad_elems > 0 or bad_jacobian_elements > 0:
                 raise RuntimeError(
-                    f"{ctx}: even finer first-order mesh has {bad_elems} invalid elements "
-                    f"{ctx}: first-order mesh has {bad_jacobian_elements} negative jacobians"
+                    f"Geometry {sim_number:04d}: the finer first-order mesh has "
+                    f"{bad_elems} invalid elements and {bad_jacobian_elements} "
+                    "nonpositive Jacobians."
                 )
 
         # Node equations must be built from the final accepted mesh.
@@ -515,6 +521,7 @@ def run_calculix_simulation(case: SimpleNamespace) -> bool:
             text=True,
             timeout=ctx.timeout_seconds,
             cwd=str(case.inp_path.parent),
+            check=False,
         )
 
         if result.returncode != 0:

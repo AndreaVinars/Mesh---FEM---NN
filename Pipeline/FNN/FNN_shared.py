@@ -60,6 +60,21 @@ class FNN(nn.Module):
         return self.net(x)
 
 
+def _validate_geometry(values: tuple[float, ...]) -> None:
+    """Reject invalid inference geometry before constructing model features."""
+
+    if not np.isfinite(np.asarray(values, dtype=float)).all():
+        raise ValueError("All geometry parameters must be finite numbers.")
+
+    _, _, rx1, ry1, _, _, _, rx2, ry2, _ = values
+    if min(rx1, ry1, rx2, ry2) <= 0:
+        raise ValueError("Ellipse semi-axes must be positive.")
+    if rx1 < ry1 or rx2 < ry2:
+        raise ValueError(
+            "The trained feature convention requires rx >= ry for both ellipses."
+        )
+
+
 def add_derived_features(df: Any) -> Any:
     """Add the eight derived feature columns to ``df`` in place and return it."""
 
@@ -92,6 +107,20 @@ def build_feature_vector(
     The returned array follows ``FEATURE_NAMES`` exactly. The accompanying
     dictionary exposes the same values by name for diagnostics and reporting.
     """
+
+    geometry_values = (
+        x1,
+        y1,
+        rx1,
+        ry1,
+        angle1_deg,
+        x2,
+        y2,
+        rx2,
+        ry2,
+        angle2_deg,
+    )
+    _validate_geometry(geometry_values)
 
     angle1_rad = np.radians(angle1_deg)
     angle2_rad = np.radians(angle2_deg)
@@ -128,7 +157,7 @@ def build_feature_vector(
         round(abs(ry1 - ry2), 3),
     )
 
-    feature_data = dict(zip(FEATURE_NAMES, feature_values))
+    feature_data = dict(zip(FEATURE_NAMES, feature_values, strict=True))
     feature_vector = np.asarray([feature_values], dtype=np.float32)
 
     return feature_vector, feature_data

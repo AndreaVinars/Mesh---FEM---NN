@@ -145,7 +145,12 @@ def load_config(config_path: Path) -> Dict[str, Any]:
     """Load a YAML configuration file with safe parsing."""
 
     with config_path.open("r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f)
+
+    if not isinstance(config, dict):
+        raise ValueError(f"Configuration must contain a YAML mapping: {config_path}")
+
+    return config
 
 
 # =============================================================================
